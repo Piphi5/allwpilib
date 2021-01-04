@@ -17,6 +17,7 @@ std::tuple<Kp_t, Kd_t> sysid::CalculatePositionFeedbackGains(
     const FeedforwardGains& feedforwardGains) {
   // Get Ks, Kv, and Ka from the tuple.
   auto& [Ks, Kv, Ka] = feedforwardGains;
+  static_cast<void>(Ks);
 
   // If acceleration requires no effort, velocity becomes an input for position
   // control. We choose an appropriate model in this case to avoid numerical

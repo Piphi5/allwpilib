@@ -13,6 +13,7 @@ repoRootNameOverride {
 }
 
 includeOtherLibs {
+  ^glass
   ^GLFW
   ^cscore
   ^Eigen
