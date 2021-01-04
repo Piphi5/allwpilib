@@ -12,7 +12,7 @@
 
 using namespace sysid;
 
-std::tuple<Kp_t, Kd_t> CalculatePositionFeedbackGains(
+std::tuple<Kp_t, Kd_t> sysid::CalculatePositionFeedbackGains(
     const FeedbackControllerPreset& preset, const LQRParameters& params,
     const FeedforwardGains& feedforwardGains) {
   // Get Ks, Kv, and Ka from the tuple.
@@ -52,7 +52,7 @@ std::tuple<Kp_t, Kd_t> CalculatePositionFeedbackGains(
   return {Kp_t(Kv.to<double>() * controller.K(0, 0)), Kd_t(0)};
 }
 
-std::tuple<Kp_t, Kd_t> CalculateVelocityFeedbackGains(
+std::tuple<Kp_t, Kd_t> sysid::CalculateVelocityFeedbackGains(
     const FeedbackControllerPreset& preset, const LQRParameters& params,
     const FeedforwardGains& feedforwardGains) {
   // Get Ks, Kv, and Ka from the tuple.
