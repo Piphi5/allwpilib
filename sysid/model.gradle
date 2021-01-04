@@ -35,6 +35,7 @@ model {
             // Add WPILib dependencies.
             lib project: ':ntcore', library: 'ntcore', linkage: 'static'
             lib project: ':wpimath', library: 'wpimath', linkage: 'static'
+            lib project: ':glass', library: 'glassnt', linkage: 'static'
             lib project: ':glass', library: 'glass', linkage: 'static'
             lib project: ':wpiutil', library: 'wpiutil', linkage: 'static'
             lib project: ':wpigui', library: 'wpigui', linkage: 'static'

@@ -4,10 +4,9 @@
 
 #ifndef RUNNING_SYSID_TESTS
 
-#include <glass/Context.h>
-
 #include <iostream>
 
+#include <glass/Context.h>
 #include <wpigui.h>
 
 namespace gui = wpi::gui;
