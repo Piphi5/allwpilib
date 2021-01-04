@@ -1,0 +1,96 @@
+// Check if we are actually building for a desktop platform.
+def desktop = !(project.hasProperty("onlylinuxathena") || project.hasProperty("onlylinuxraspbian")
+        || project.hasProperty("onlylinuxaarch64bionic"))
+
+// Configure the project only if we are building for a desktop platform.
+if (desktop) {
+    // Add project description
+    description = "System identification for robot mechanisms"
+
+    // Apply relevant plugins
+    apply plugin: "c"
+    apply plugin: "cpp"
+    apply plugin: "visual-studio"
+    apply plugin: "google-test-test-suite"
+    apply plugin: "edu.wpi.first.NativeUtils"
+
+    // Configure the NativeUtils extension
+    apply from: "${rootDir}/shared/config.gradle"
+
+    // Configure exports configs for Windows x86 and x64 platforms.
+    nativeUtils.exportsConfigs {
+        glass {
+            x86ExcludeSymbols = [
+                    '_CT??_R0?AV_System_error',
+                    '_CT??_R0?AVexception',
+                    '_CT??_R0?AVfailure',
+                    '_CT??_R0?AVruntime_error',
+                    '_CT??_R0?AVsystem_error',
+                    '_CTA5?AVfailure',
+                    '_TI5?AVfailure',
+                    '_CT??_R0?AVout_of_range',
+                    '_CTA3?AVout_of_range',
+                    '_TI3?AVout_of_range',
+                    '_CT??_R0?AVbad_cast'
+            ]
+            x64ExcludeSymbols = [
+                    '_CT??_R0?AV_System_error',
+                    '_CT??_R0?AVexception',
+                    '_CT??_R0?AVfailure',
+                    '_CT??_R0?AVruntime_error',
+                    '_CT??_R0?AVsystem_error',
+                    '_CTA5?AVfailure',
+                    '_TI5?AVfailure',
+                    '_CT??_R0?AVout_of_range',
+                    '_CTA3?AVout_of_range',
+                    '_TI3?AVout_of_range',
+                    '_CT??_R0?AVbad_cast'
+            ]
+        }
+    }
+
+    // Configure the software model.
+    model {
+        components {
+            sysid(NativeExecutableSpec) {
+                // Setup the sources and headers for the application.
+                sources.cpp {
+                    source {
+                        srcDirs 'src/app/native/cpp'
+                        include '**/*.cpp'
+                    }
+                    exportedHeaders.srcDirs 'src/app/native/include'
+                }
+
+                binaries.all {
+                    // Only build desktop platforms.
+                    if (it.targetPlatform.name == nativeUtils.wpi.platforms.roborio
+                            || it.targetPlatform.name == nativeUtils.wpi.platforms.raspbian
+                            || it.targetPlatform.name == nativeUtils.wpi.platforms.aarch64bionic) {
+                        it.buildable = false
+                        return
+                    }
+
+                    // Add WPILib dependencies.
+                    lib project: ':ntcore', library: 'ntcore', linkage: 'static'
+                    lib project: ':wpimath', library: 'wpimath', linkage: 'static'
+                    lib project: ':glass', library: 'glass', linkage: 'static'
+                    lib project: ':wpiutil', library: 'wpiutil', linkage: 'static'
+                    lib project: ':wpigui', library: 'wpigui', linkage: 'static'
+                    nativeUtils.useRequiredLibrary(it, 'imgui_static')
+
+                    // Add platform-specific renderer dependencies.
+                    if (it.targetPlatform.operatingSystem.isWindows()) {
+                        it.linker.args << 'Gdi32.lib' << 'Shell32.lib' << 'd3d11.lib' << 'd3dcompiler.lib'
+                    } else if (it.targetPlatform.operatingSystem.isMacOsX()) {
+                        it.linker.args << '-framework' << 'Metal' << '-framework' << 'MetalKit' <<
+                                '-framework' << 'Cocoa' << '-framework' << 'IOKit' << '-framework' <<
+                                'CoreFoundation' << '-framework' << 'CoreVideo' << '-framework' << 'QuartzCore'
+                    } else {
+                        it.linker.args << '-lX11'
+                    }
+                }
+            }
+        }
+    }
+}
