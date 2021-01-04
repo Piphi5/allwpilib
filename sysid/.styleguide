@@ -1,0 +1,23 @@
+cppHeaderFileInclude {
+  \.h$
+  \.inc$
+  \.inl$
+}
+
+cppSrcFileInclude {
+  \.cpp$
+}
+
+repoRootNameOverride {
+  sysid
+}
+
+includeOtherLibs {
+  ^GLFW
+  ^cscore
+  ^imgui
+  ^ntcore
+  ^wpi/
+  ^wpigui
+  ^wpimath/
+}
