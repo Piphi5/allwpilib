@@ -21,30 +21,30 @@ if (desktop) {
     nativeUtils.exportsConfigs {
         glass {
             x86ExcludeSymbols = [
-                    '_CT??_R0?AV_System_error',
-                    '_CT??_R0?AVexception',
-                    '_CT??_R0?AVfailure',
-                    '_CT??_R0?AVruntime_error',
-                    '_CT??_R0?AVsystem_error',
-                    '_CTA5?AVfailure',
-                    '_TI5?AVfailure',
-                    '_CT??_R0?AVout_of_range',
-                    '_CTA3?AVout_of_range',
-                    '_TI3?AVout_of_range',
-                    '_CT??_R0?AVbad_cast'
+                '_CT??_R0?AV_System_error',
+                '_CT??_R0?AVexception',
+                '_CT??_R0?AVfailure',
+                '_CT??_R0?AVruntime_error',
+                '_CT??_R0?AVsystem_error',
+                '_CTA5?AVfailure',
+                '_TI5?AVfailure',
+                '_CT??_R0?AVout_of_range',
+                '_CTA3?AVout_of_range',
+                '_TI3?AVout_of_range',
+                '_CT??_R0?AVbad_cast'
             ]
             x64ExcludeSymbols = [
-                    '_CT??_R0?AV_System_error',
-                    '_CT??_R0?AVexception',
-                    '_CT??_R0?AVfailure',
-                    '_CT??_R0?AVruntime_error',
-                    '_CT??_R0?AVsystem_error',
-                    '_CTA5?AVfailure',
-                    '_TI5?AVfailure',
-                    '_CT??_R0?AVout_of_range',
-                    '_CTA3?AVout_of_range',
-                    '_TI3?AVout_of_range',
-                    '_CT??_R0?AVbad_cast'
+                '_CT??_R0?AV_System_error',
+                '_CT??_R0?AVexception',
+                '_CT??_R0?AVfailure',
+                '_CT??_R0?AVruntime_error',
+                '_CT??_R0?AVsystem_error',
+                '_CTA5?AVfailure',
+                '_TI5?AVfailure',
+                '_CT??_R0?AVout_of_range',
+                '_CTA3?AVout_of_range',
+                '_TI3?AVout_of_range',
+                '_CT??_R0?AVbad_cast'
             ]
         }
     }
@@ -65,8 +65,8 @@ if (desktop) {
                 binaries.all {
                     // Only build desktop platforms.
                     if (it.targetPlatform.name == nativeUtils.wpi.platforms.roborio
-                            || it.targetPlatform.name == nativeUtils.wpi.platforms.raspbian
-                            || it.targetPlatform.name == nativeUtils.wpi.platforms.aarch64bionic) {
+                    || it.targetPlatform.name == nativeUtils.wpi.platforms.raspbian
+                    || it.targetPlatform.name == nativeUtils.wpi.platforms.aarch64bionic) {
                         it.buildable = false
                         return
                     }
@@ -93,4 +93,5 @@ if (desktop) {
             }
         }
     }
+    apply from: "publish.gradle"
 }
