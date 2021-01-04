@@ -32,6 +32,7 @@ struct FeedbackControllerPreset {
   units::second_t velocityMeasurementDelay;
 };
 
+namespace presets {
 constexpr FeedbackControllerPreset kDefault{12 / 12_V, 20_ms, true, 0_s, 0_s};
 
 constexpr FeedbackControllerPreset kWPILibNew{kDefault};
@@ -53,5 +54,6 @@ constexpr FeedbackControllerPreset kREVBrushless{1 / 12_V, 1_ms, false, 0_s,
 // 64-tap FIR = (64 - 1) / 2 ms = 31.5 ms delay.
 constexpr FeedbackControllerPreset kREVBrushed{1 / 12_V, 1_ms, false, 0_s,
                                                31.5_ms};
+}  // namespace presets
 
 }  // namespace sysid

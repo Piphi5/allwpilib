@@ -17,9 +17,12 @@ if (desktop) {
     // Configure the NativeUtils extension
     apply from: "${rootDir}/shared/config.gradle"
 
+    // Configure GoogleTest
+    apply from: "${rootDir}/shared/googletest.gradle"
+
     // Configure exports configs for Windows x86 and x64 platforms.
     nativeUtils.exportsConfigs {
-        glass {
+        sysid {
             x86ExcludeSymbols = [
                 '_CT??_R0?AV_System_error',
                 '_CT??_R0?AVexception',
@@ -50,48 +53,8 @@ if (desktop) {
     }
 
     // Configure the software model.
-    model {
-        components {
-            sysid(NativeExecutableSpec) {
-                // Setup the sources and headers for the application.
-                sources.cpp {
-                    source {
-                        srcDirs 'src/app/native/cpp'
-                        include '**/*.cpp'
-                    }
-                    exportedHeaders.srcDirs 'src/app/native/include'
-                }
+    apply from: "model.gradle"
 
-                binaries.all {
-                    // Only build desktop platforms.
-                    if (it.targetPlatform.name == nativeUtils.wpi.platforms.roborio
-                    || it.targetPlatform.name == nativeUtils.wpi.platforms.raspbian
-                    || it.targetPlatform.name == nativeUtils.wpi.platforms.aarch64bionic) {
-                        it.buildable = false
-                        return
-                    }
-
-                    // Add WPILib dependencies.
-                    lib project: ':ntcore', library: 'ntcore', linkage: 'static'
-                    lib project: ':wpimath', library: 'wpimath', linkage: 'static'
-                    lib project: ':glass', library: 'glass', linkage: 'static'
-                    lib project: ':wpiutil', library: 'wpiutil', linkage: 'static'
-                    lib project: ':wpigui', library: 'wpigui', linkage: 'static'
-                    nativeUtils.useRequiredLibrary(it, 'imgui_static')
-
-                    // Add platform-specific renderer dependencies.
-                    if (it.targetPlatform.operatingSystem.isWindows()) {
-                        it.linker.args << 'Gdi32.lib' << 'Shell32.lib' << 'd3d11.lib' << 'd3dcompiler.lib'
-                    } else if (it.targetPlatform.operatingSystem.isMacOsX()) {
-                        it.linker.args << '-framework' << 'Metal' << '-framework' << 'MetalKit' <<
-                                '-framework' << 'Cocoa' << '-framework' << 'IOKit' << '-framework' <<
-                                'CoreFoundation' << '-framework' << 'CoreVideo' << '-framework' << 'QuartzCore'
-                    } else {
-                        it.linker.args << '-lX11'
-                    }
-                }
-            }
-        }
-    }
+    // Configure publishing.
     apply from: "publish.gradle"
 }
