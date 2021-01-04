@@ -7,17 +7,17 @@
 
 #include "gtest/gtest.h"
 #include "sysid/telemetry/TelemetryData.h"
-#include "sysid/telemetry/TelemetryLogger.h"
+#include "sysid/telemetry/TelemetryManager.h"
 
-class TelemetryLoggerTest : public ::testing::Test {
+class TelemetryManagerTest : public ::testing::Test {
  public:
-  TelemetryLoggerTest()
+  TelemetryManagerTest()
       : server_inst(nt::CreateInstance()), client_inst(nt::CreateInstance()) {
     nt::SetNetworkIdentity(server_inst, "server");
     nt::SetNetworkIdentity(client_inst, "client");
   }
 
-  ~TelemetryLoggerTest() override {
+  ~TelemetryManagerTest() override {
     nt::DestroyInstance(server_inst);
     nt::DestroyInstance(client_inst);
   }
@@ -29,7 +29,7 @@ class TelemetryLoggerTest : public ::testing::Test {
   NT_Inst client_inst;
 };
 
-void TelemetryLoggerTest::Connect() {
+void TelemetryManagerTest::Connect() {
   nt::StartServer(server_inst, "telemetrylogger.ini", "127.0.0.1", 10000);
   nt::StartClient(client_inst, "127.0.0.1", 10000);
 
@@ -43,14 +43,17 @@ void TelemetryLoggerTest::Connect() {
   }
 }
 
-TEST_F(TelemetryLoggerTest, Data) {
+TEST_F(TelemetryManagerTest, Data) {
   Connect();
   if (HasFatalFailure()) {
     return;
   }
 
-  // Create the logger and start it.
-  sysid::TelemetryLogger logger{client_inst};
+  // Create the manager.
+  sysid::TelemetryManager manager{client_inst};
+
+  // Begin the "slow-forward" test.
+  manager.BeginTest("slow-forward");
 
   for (double i = 0.0; i < 10.0; i += 1.0) {
     nt::SetEntryValue(nt::GetEntry(server_inst, "/FMSInfo/FMSControlData"),
@@ -62,35 +65,16 @@ TEST_F(TelemetryLoggerTest, Data) {
 
     nt::Flush(server_inst);
     std::this_thread::sleep_for(std::chrono::milliseconds(6));
-    logger.Update();
+    manager.Update();
   }
 
-  auto data = logger.Cancel();
-  EXPECT_EQ(data.size(), 10u);
-}
+  // Disable the robot.
+  nt::SetEntryValue(nt::GetEntry(server_inst, "/FMSInfo/FMSControlData"),
+                    nt::Value::MakeDouble(0));
+  nt::Flush(server_inst);
+  std::this_thread::sleep_for(std::chrono::milliseconds(6));
+  manager.Update();
 
-TEST_F(TelemetryLoggerTest, MalformedData) {
-  Connect();
-  if (HasFatalFailure()) {
-    return;
-  }
-
-  // Create the logger and start it.
-  sysid::TelemetryLogger logger{client_inst};
-
-  for (double i = 0.0; i < 10.0; i += 1.0) {
-    nt::SetEntryValue(nt::GetEntry(server_inst, "/FMSInfo/FMSControlData"),
-                      nt::Value::MakeDouble(1));
-
-    nt::SetEntryValue(
-        nt::GetEntry(server_inst, "/SmartDashboard/SysIdTelemetry"),
-        nt::Value::MakeDoubleArray({i, i, i, i, i, i, i, i, i}));
-
-    nt::Flush(server_inst);
-    std::this_thread::sleep_for(std::chrono::milliseconds(6));
-    logger.Update();
-  }
-
-  auto data = logger.Cancel();
-  EXPECT_EQ(data.size(), 0u);
+  const auto& data = manager.GetJSON();
+  EXPECT_FALSE(data.dump().empty());
 }

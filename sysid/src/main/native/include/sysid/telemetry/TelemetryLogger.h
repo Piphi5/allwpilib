@@ -25,11 +25,6 @@ class TelemetryLogger {
   explicit TelemetryLogger(NT_Inst instance = nt::GetDefaultInstance());
 
   /**
-   * Start the process of logging data.
-   */
-  void Start() { m_active = true; }
-
-  /**
    * Check for new updates from NetworkTables and update the internal vector
    * with new data.
    */
@@ -40,6 +35,11 @@ class TelemetryLogger {
    * data. Note that this clears the internal data vector.
    */
   std::vector<TelemetryData> Cancel();
+
+  /**
+   * Returns whether the robot is enabled.
+   */
+  bool IsEnabled() const { return m_enabled; }
 
  private:
   // Helps with various NT functionality i.e. listeners, etc.
@@ -52,8 +52,5 @@ class TelemetryLogger {
   // Stores the collected data and whether the robot is enabled.
   std::vector<TelemetryData> m_data;
   bool m_enabled = false;
-
-  // Whether the logger is active.
-  bool m_active = false;
 };
 }  // namespace sysid

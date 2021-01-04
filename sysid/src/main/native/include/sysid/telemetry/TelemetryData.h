@@ -46,5 +46,13 @@ struct TelemetryData {
 
   /** The gyro angle (only applicable for drivetrain tests) */
   units::radian_t angle;
+
+  std::array<double, 10> ToArray() const {
+    return {
+        timestamp.to<double>(), voltage.to<double>(),   speed,
+        pVolts.to<double>(),    sVolts.to<double>(),    pPosition.to<double>(),
+        sPosition.to<double>(), pVelocity.to<double>(), sVelocity.to<double>(),
+        angle.to<double>()};
+  }
 };
 }  // namespace sysid
