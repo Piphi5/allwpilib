@@ -55,5 +55,4 @@ constexpr FeedbackControllerPreset kREVBrushless{1 / 12_V, 1_ms, false, 0_s,
 constexpr FeedbackControllerPreset kREVBrushed{1 / 12_V, 1_ms, false, 0_s,
                                                31.5_ms};
 }  // namespace presets
-
 }  // namespace sysid
