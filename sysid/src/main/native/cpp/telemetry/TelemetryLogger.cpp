@@ -10,7 +10,7 @@ using namespace sysid;
 
 TelemetryLogger::TelemetryLogger(NT_Inst instance)
     : m_nt(instance),
-      m_fmsControl(m_nt.GetEntry("FMSInfo/FMSControlData")),
+      m_fmsControl(m_nt.GetEntry("/FMSInfo/FMSControlData")),
       m_telemetry(m_nt.GetEntry("/SmartDashboard/SysIdTelemetry")) {
   m_nt.AddListener(m_fmsControl);
   m_nt.AddListener(m_telemetry);
@@ -34,7 +34,7 @@ void TelemetryLogger::Update() {
 
         // Do some quick validation -- make sure the size is 10.
         if (data.size() != 10) {
-          wpi::outs() << "The size of the received data was not 10\n.";
+          wpi::outs() << "The size of the received data was not 10.\n";
           return;
         }
 
