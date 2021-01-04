@@ -15,6 +15,7 @@ repoRootNameOverride {
 includeOtherLibs {
   ^GLFW
   ^cscore
+  ^frc
   ^imgui
   ^ntcore
   ^wpi/

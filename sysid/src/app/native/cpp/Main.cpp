@@ -4,6 +4,10 @@
 
 #include <iostream>
 
+#include "sysid/analysis/FeedbackControllerPreset.h"
+
+#ifndef RUNNING_SYSID_TESTS
 int main() {
   std::cout << "Hello, world" << std::endl;
 }
+#endif
