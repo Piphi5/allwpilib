@@ -58,6 +58,7 @@ std::tuple<Kp_t, Kd_t> sysid::CalculateVelocityFeedbackGains(
     const FeedforwardGains& feedforwardGains) {
   // Get Ks, Kv, and Ka from the tuple.
   auto& [Ks, Kv, Ka] = feedforwardGains;
+  static_cast<void>(Ks);
 
   // If acceleration for velocity control requires no effort, the feedback
   // control gains approach zero. We special-case it here because numerical
