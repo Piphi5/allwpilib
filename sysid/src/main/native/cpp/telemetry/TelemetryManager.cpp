@@ -12,6 +12,7 @@
 using namespace sysid;
 
 void TelemetryManager::BeginTest(wpi::StringRef path) {
+  m_tests.push_back(path);
   m_active = path;
   m_logger = std::make_unique<TelemetryLogger>(m_inst);
 }
