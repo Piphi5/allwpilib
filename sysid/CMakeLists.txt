@@ -14,6 +14,10 @@ wpilib_target_warnings(sysid)
 wpilib_link_macos_gui(sysid)
 target_link_libraries(sysid libglassnt libglass ntcore wpigui wpimath wpiutil imgui)
 
+if (WIN32)
+    set_target_properties(glass PROPERTIES WIN32_EXECUTABLE YES)
+endif()
+
 if (WITH_TESTS)
   wpilib_add_test(sysid src/test/native/cpp)
   target_sources(sysid_test PRIVATE ${sysid_srcs})
