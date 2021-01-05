@@ -13,7 +13,11 @@ class StringRef;
 
 namespace sysid {
 struct AnalysisType {
+  /** The name of the analysis type */
   const char* name;
+
+  /** The number of independent variables for feedforward analysis */
+  size_t independentVariables;
 
   constexpr bool operator==(const AnalysisType& rhs) const {
     return std::string_view(name) == rhs.name;
@@ -25,10 +29,10 @@ struct AnalysisType {
 };
 
 namespace analysis {
-constexpr AnalysisType kDrivetrain{"Drivetrain"};
-constexpr AnalysisType kElevator{"Elevator"};
-constexpr AnalysisType kArm{"Arm"};
-constexpr AnalysisType kSimple{"Simple"};
+constexpr AnalysisType kDrivetrain{"Drivetrain", 3};
+constexpr AnalysisType kElevator{"Elevator", 4};
+constexpr AnalysisType kArm{"Arm", 4};
+constexpr AnalysisType kSimple{"Simple", 3};
 
 AnalysisType FromName(wpi::StringRef name);
 }  // namespace analysis
