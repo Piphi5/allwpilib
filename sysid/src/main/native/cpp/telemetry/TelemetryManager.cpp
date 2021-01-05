@@ -8,13 +8,15 @@
 #include <system_error>
 
 #include <wpi/raw_ostream.h>
+#include <wpi/timestamp.h>
 
 using namespace sysid;
 
 void TelemetryManager::BeginTest(wpi::StringRef path) {
   m_tests.push_back(path);
   m_active = path;
-  m_logger = std::make_unique<TelemetryLogger>(m_inst);
+  m_logger =
+      std::make_unique<TelemetryLogger>([this] { return m_speed; }, m_inst);
 }
 
 void TelemetryManager::Update() {
@@ -23,11 +25,26 @@ void TelemetryManager::Update() {
     return;
   }
 
+  if (m_logger->IsEnabled()) {
+    // Update the speed entry.
+    if (wpi::StringRef(m_active).startswith("fast")) {
+      m_speed = m_params.step.to<double>() / 12.0;
+    } else if (wpi::StringRef(m_active).startswith("slow")) {
+      m_speed = (m_params.quasistatic *
+                 (units::second_t(wpi::Now() * 1E-6) - m_start))
+                    .to<double>() /
+                12.0;
+    }
+  } else {
+    m_speed = 0.0;
+  }
+
   m_logger->Update();
 
   // If we just enabled, store that value.
   if (!m_hasEnabled && m_logger->IsEnabled()) {
     m_hasEnabled = true;
+    m_start = units::second_t(wpi::Now() * 1E-6);
   }
 
   // If the robot disabled after being enabled at one point during data

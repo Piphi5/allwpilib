@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <functional>
 #include <vector>
 
 #include <glass/networktables/NetworkTablesHelper.h>
@@ -22,7 +23,9 @@ class TelemetryLogger {
   /**
    * Constructs an instance of the telemetry logger with the given NT_Inst.
    */
-  explicit TelemetryLogger(NT_Inst instance = nt::GetDefaultInstance());
+  explicit TelemetryLogger(
+      std::function<double()> autospeed = [] { return 0.0; },
+      NT_Inst instance = nt::GetDefaultInstance());
 
   /**
    * Check for new updates from NetworkTables and update the internal vector
@@ -44,10 +47,12 @@ class TelemetryLogger {
  private:
   // Helps with various NT functionality i.e. listeners, etc.
   glass::NetworkTablesHelper m_nt;
+  std::function<double()> m_autospeedFunc;
 
   // Entries used to retrieve informaiton about the robot.
   NT_Entry m_fmsControl;
   NT_Entry m_telemetry;
+  NT_Entry m_autospeed;
 
   // Stores the collected data and whether the robot is enabled.
   std::vector<TelemetryData> m_data;

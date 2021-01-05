@@ -35,7 +35,7 @@ Logger::Logger() {
   m_tests["Quasistatic Forward"] = "slow-forward";
   m_tests["Quasistatic Backward"] = "slow-backward";
   m_tests["Dynamic Forward"] = "fast-forward";
-  m_tests["Dynamic Backrward"] = "fast-backward";
+  m_tests["Dynamic Backward"] = "fast-backward";
 }
 
 void Logger::Display() {
@@ -53,8 +53,15 @@ void Logger::Display() {
   // Reset and clear the internal manager state.
   ImGui::SameLine();
   if (ImGui::Button("Clear Data")) {
-    m_manager = std::make_unique<TelemetryManager>();
+    m_manager = std::make_unique<TelemetryManager>(m_params);
   }
+
+  // Add NT connection indicator.
+  static ImVec4 kColorDisconnected{1.0f, 0.4f, 0.4f, 1.0f};
+  static ImVec4 kColorConnected{0.2f, 1.0f, 0.2f, 1.0f};
+  ImGui::SameLine();
+  ImGui::TextColored(m_ntConnected ? kColorConnected : kColorDisconnected,
+                     m_ntConnected ? "NT Connected" : "NT Disconnected");
 
   // Create a section for voltage parameters.
   ImGui::Separator();
@@ -70,6 +77,12 @@ void Logger::Display() {
                           reinterpret_cast<double*>(&m_params.quasistatic));
   CreateVoltageParameters("Dynamic Step Voltage (V)",
                           reinterpret_cast<double*>(&m_params.step));
+
+  // Add button to apply.
+  ImGui::SameLine(width * 0.9);
+  if (ImGui::Button("Apply")) {
+    m_manager = std::make_unique<TelemetryManager>(m_params);
+  }
 
   // Create a section for tests.
   ImGui::Separator();
@@ -133,7 +146,7 @@ void Logger::Display() {
                    ImGuiInputTextFlags_ReadOnly);
 
   // Add button to save.
-  ImGui::SameLine();
+  ImGui::SameLine(width * 0.9);
   if (ImGui::Button("Save")) {
     try {
       m_manager->SaveJSON(m_jsonLocation + "/sysid_data.json");

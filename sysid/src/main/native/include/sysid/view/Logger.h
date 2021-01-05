@@ -30,8 +30,10 @@ class Logger : public glass::View {
   void SelectDataFolder();
   void CheckNTReset();
 
+  VoltageParameters m_params{0.25_V / 1_s, 7_V, 4_V};
+
   std::unique_ptr<TelemetryManager> m_manager =
-      std::make_unique<TelemetryManager>();
+      std::make_unique<TelemetryManager>(m_params);
 
   std::unique_ptr<pfd::select_folder> m_selector;
   std::string m_jsonLocation;
@@ -40,7 +42,6 @@ class Logger : public glass::View {
   bool m_ntReset = true;
 
   int* m_team = nullptr;
-  VoltageParameters m_params{0.25_V / 1_s, 7_V, 4_V};
 
   std::string m_opened;
   std::string m_exception;

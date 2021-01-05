@@ -50,7 +50,7 @@ TEST_F(TelemetryLoggerTest, Data) {
   }
 
   // Create the logger and start it.
-  sysid::TelemetryLogger logger{client_inst};
+  sysid::TelemetryLogger logger{[] { return 0.0; }, client_inst};
 
   for (double i = 0.0; i < 10.0; i += 1.0) {
     nt::SetEntryValue(nt::GetEntry(server_inst, "/FMSInfo/FMSControlData"),
@@ -76,7 +76,7 @@ TEST_F(TelemetryLoggerTest, MalformedData) {
   }
 
   // Create the logger and start it.
-  sysid::TelemetryLogger logger{client_inst};
+  sysid::TelemetryLogger logger{[] { return 0.0; }, client_inst};
 
   for (double i = 0.0; i < 10.0; i += 1.0) {
     nt::SetEntryValue(nt::GetEntry(server_inst, "/FMSInfo/FMSControlData"),

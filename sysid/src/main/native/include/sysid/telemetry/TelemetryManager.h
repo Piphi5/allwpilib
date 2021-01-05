@@ -36,8 +36,9 @@ class TelemetryManager {
   /**
    * Constructs a telemetry manager with the given instance.
    */
-  explicit TelemetryManager(NT_Inst instance = nt::GetDefaultInstance())
-      : m_inst(instance) {}
+  explicit TelemetryManager(const VoltageParameters& params,
+                            NT_Inst instance = nt::GetDefaultInstance())
+      : m_inst(instance), m_params(params) {}
 
   /**
    * Begins the test with the given name and stores the data. The test is
@@ -88,6 +89,10 @@ class TelemetryManager {
   wpi::SmallVector<std::string, 5> m_tests;
 
   NT_Inst m_inst;
+  VoltageParameters m_params;
   wpi::json m_data;
+
+  double m_speed = 0;
+  units::second_t m_start;
 };
 }  // namespace sysid
