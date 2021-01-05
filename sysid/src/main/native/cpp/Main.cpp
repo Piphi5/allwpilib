@@ -4,12 +4,20 @@
 
 #ifndef RUNNING_SYSID_TESTS
 
-#include <iostream>
+#include <memory>
 
 #include <glass/Context.h>
+#include <glass/Window.h>
+#include <glass/WindowManager.h>
 #include <wpigui.h>
 
+#include "sysid/view/Logger.h"
+
 namespace gui = wpi::gui;
+
+static std::unique_ptr<glass::WindowManager> gWindowManager;
+
+glass::Window* gLoggerWindow;
 
 #ifdef _WIN32
 int __stdcall WinMain(void* hInstance, void* hPrevInstance, char* pCmdLine,
@@ -21,6 +29,13 @@ int main() {
   gui::CreateContext();
   glass::CreateContext();
 
+  // Initialize window manager and add views.
+  gWindowManager = std::make_unique<glass::WindowManager>("SysId");
+  gWindowManager->GlobalInit();
+
+  gLoggerWindow =
+      gWindowManager->AddWindow("Logger", std::make_unique<sysid::Logger>());
+
   // Configure save file.
   gui::ConfigurePlatformSaveFile("sysid.ini");
 
@@ -28,6 +43,12 @@ int main() {
   gui::AddLateExecute([] {
     ImGui::BeginMainMenuBar();
     gui::EmitViewMenu();
+
+    if (ImGui::BeginMenu("Widgets")) {
+      gWindowManager->DisplayMenu();
+      ImGui::EndMenu();
+    }
+
     ImGui::EndMainMenuBar();
   });
 

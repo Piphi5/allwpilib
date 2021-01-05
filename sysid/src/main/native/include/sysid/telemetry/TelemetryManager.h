@@ -4,16 +4,30 @@
 
 #pragma once
 
+#include <units/time.h>
+#include <units/voltage.h>
+
+#include <algorithm>
 #include <memory>
 #include <string>
 
 #include <ntcore_cpp.h>
+#include <wpi/SmallVector.h>
 #include <wpi/StringRef.h>
 #include <wpi/json.h>
 
 #include "sysid/telemetry/TelemetryLogger.h"
 
 namespace sysid {
+/**
+ * Represents the voltages for the system identification tests.
+ */
+struct VoltageParameters {
+  decltype(1_V / 1_s) quasistatic;
+  units::volt_t step;
+  units::volt_t rotation;
+};
+
 /**
  * Manages all telemetry for a round of tests and saves the data to a JSON.
  */
@@ -53,10 +67,25 @@ class TelemetryManager {
    */
   void SaveJSON(wpi::StringRef path);
 
+  /**
+   * Returns whether a test is currently running.
+   */
+  bool IsActive() const { return m_logger.operator bool(); }
+
+  /**
+   * Checks if a test has run or is currently running.
+   */
+  bool HasRunTest(wpi::StringRef test) const {
+    return std::find(m_tests.begin(), m_tests.end(), test.str()) !=
+           m_tests.end();
+  }
+
  private:
   std::unique_ptr<TelemetryLogger> m_logger;
   std::string m_active;
   bool m_hasEnabled;
+
+  wpi::SmallVector<std::string, 5> m_tests;
 
   NT_Inst m_inst;
   wpi::json m_data;
