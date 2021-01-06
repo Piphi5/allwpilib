@@ -20,25 +20,18 @@
 
 namespace sysid {
 /**
- * Represents the voltages for the system identification tests.
- */
-struct VoltageParameters {
-  decltype(1_V / 1_s) quasistatic;
-  units::volt_t step;
-  units::volt_t rotation;
-};
-
-/**
  * Manages all telemetry for a round of tests and saves the data to a JSON.
  */
 class TelemetryManager {
  public:
   /**
-   * Constructs a telemetry manager with the given instance.
+   * Constructs a telemetry manager with the given quasistatic ramp rate, step
+   * voltage and NT instance. The caller must take care of the lifetime of the
+   * two pointers passed to this constructor.
    */
-  explicit TelemetryManager(const VoltageParameters& params,
+  explicit TelemetryManager(double* quasistatic, double* step,
                             NT_Inst instance = nt::GetDefaultInstance())
-      : m_inst(instance), m_params(params) {}
+      : m_inst(instance), m_quasistatic(quasistatic), m_step(step) {}
 
   /**
    * Begins the test with the given name and stores the data. The test is
@@ -89,8 +82,10 @@ class TelemetryManager {
   wpi::SmallVector<std::string, 5> m_tests;
 
   NT_Inst m_inst;
-  VoltageParameters m_params;
   wpi::json m_data;
+
+  double* m_quasistatic;
+  double* m_step;
 
   double m_speed = 0;
   units::second_t m_start;

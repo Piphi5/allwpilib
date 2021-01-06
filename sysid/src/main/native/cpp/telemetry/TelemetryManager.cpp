@@ -28,12 +28,12 @@ void TelemetryManager::Update() {
   if (m_logger->IsEnabled()) {
     // Update the speed entry.
     if (wpi::StringRef(m_active).startswith("fast")) {
-      m_speed = m_params.step.to<double>() / 12.0;
+      m_speed = *m_step / 12.0;
     } else if (wpi::StringRef(m_active).startswith("slow")) {
-      m_speed = (m_params.quasistatic *
-                 (units::second_t(wpi::Now() * 1E-6) - m_start))
-                    .to<double>() /
-                12.0;
+      m_speed =
+          (*m_quasistatic * (units::second_t(wpi::Now() * 1E-6) - m_start))
+              .to<double>() /
+          12.0;
     }
   } else {
     m_speed = 0.0;
