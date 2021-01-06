@@ -6,7 +6,6 @@
 #include <wpi/raw_ostream.h>
 
 #include "gtest/gtest.h"
-#include "sysid/telemetry/TelemetryData.h"
 #include "sysid/telemetry/TelemetryLogger.h"
 
 class TelemetryLoggerTest : public ::testing::Test {
