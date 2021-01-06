@@ -7,7 +7,9 @@ include(LinkMacOSGUI)
 file(GLOB_RECURSE sysid_srcs src/main/native/cpp/*.cpp)
 file(GLOB_RECURSE sysid_hdrs src/main/native/include/*.h)
 
-add_executable(sysid ${sysid_srcs} ${sysid_hdrs})
+configure_file(src/generate/WPILibVersion.cpp.in WPILibVersion.cpp)
+
+add_executable(sysid ${sysid_srcs} ${sysid_hdrs} ${CMAKE_CURRENT_BINARY_DIR}/WPILibVersion.cpp)
 target_include_directories(sysid PUBLIC src/main/native/include)
 
 wpilib_target_warnings(sysid)

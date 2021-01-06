@@ -21,6 +21,8 @@ static std::unique_ptr<glass::WindowManager> gWindowManager;
 glass::Window* gLoggerWindow;
 glass::Window* gAnalyzerWindow;
 
+const char* GetWPILibVersion();
+
 #ifdef _WIN32
 int __stdcall WinMain(void* hInstance, void* hPrevInstance, char* pCmdLine,
                       int nCmdShow) {
@@ -54,7 +56,29 @@ int main() {
       ImGui::EndMenu();
     }
 
+    bool about = false;
+    if (ImGui::BeginMenu("Info")) {
+      if (ImGui::MenuItem("About")) {
+        about = true;
+      }
+      ImGui::EndMenu();
+    }
+
     ImGui::EndMainMenuBar();
+
+    if (about) {
+      ImGui::OpenPopup("About");
+      about = false;
+    }
+    if (ImGui::BeginPopupModal("About")) {
+      ImGui::Text("Glass: A different kind of dashboard");
+      ImGui::Separator();
+      ImGui::Text("v%s", GetWPILibVersion());
+      if (ImGui::Button("Close")) {
+        ImGui::CloseCurrentPopup();
+      }
+      ImGui::EndPopup();
+    }
   });
 
   gui::Initialize("System Identification", 1280, 720);
