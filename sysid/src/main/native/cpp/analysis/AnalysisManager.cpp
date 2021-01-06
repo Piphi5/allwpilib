@@ -12,7 +12,10 @@
 
 using namespace sysid;
 
-AnalysisManager::AnalysisManager(wpi::StringRef path) {
+AnalysisManager::AnalysisManager(wpi::StringRef path,
+                                 FeedbackControllerPreset* preset,
+                                 LQRParameters* params)
+    : m_preset(preset), m_params(params) {
   // Read JSON from the specified path.
   std::error_code ec;
   wpi::raw_fd_istream is{path, ec};
@@ -31,6 +34,18 @@ AnalysisManager::AnalysisManager(wpi::StringRef path) {
 
   // Prepare the data.
   PrepareData();
+}
+
+const AnalysisManager::Gains& AnalysisManager::SelectDataset(
+    wpi::StringRef dataset) {
+  m_dataset = dataset;
+  return Recalculate();
+}
+
+const AnalysisManager::Gains& AnalysisManager::Recalculate() {
+  CalculateFeedforwardGains(m_dataset);
+  CalculateFeedbackGains(m_dataset);
+  return m_gains;
 }
 
 void AnalysisManager::PrepareData() {
@@ -79,7 +94,12 @@ void AnalysisManager::PrepareData() {
       auto& pt = d->at(i);
       double acc = (d->at(i + 1)[7] - d->at(i - 1)[7]) /
                    (d->at(i + 1)[0] - d->at(i - 1)[0]);
-      prepared.push_back({pt[0], pt[3], pt[5], pt[7], acc, 0.0});
+
+      // Sometimes, if the encoder velocities are the same, it will register
+      // zero acceleration. Do not include these values.
+      if (acc != 0) {
+        prepared.push_back({pt[0], pt[3], pt[5], pt[7], acc, 0.0});
+      }
     }
 
     return prepared;
@@ -132,6 +152,26 @@ void AnalysisManager::PrepareData() {
   TrimStepData(&ff);
   TrimStepData(&fb);
 
-  m_dataset["Forward"] = std::make_tuple(ff, fb);
-  m_dataset["Backward"] = std::make_tuple(sb, fb);
+  m_datasets["Forward"] = std::make_tuple(sf, ff);
+  m_datasets["Backward"] = std::make_tuple(sb, fb);
+
+  std::vector<PreparedData> sc;
+  sc.insert(sc.end(), sf.begin(), sf.end());
+  sc.insert(sc.end(), sb.begin(), sb.end());
+
+  std::vector<PreparedData> fc;
+  fc.insert(fc.end(), ff.begin(), ff.end());
+  fc.insert(fc.end(), fb.begin(), fb.end());
+
+  m_datasets["Combined"] = std::make_tuple(sc, fc);
+}
+
+void AnalysisManager::CalculateFeedforwardGains(wpi::StringRef dataset) {
+  m_gains.ff = sysid::CalculateFeedforwardGains(m_datasets[dataset], m_type);
+}
+
+void AnalysisManager::CalculateFeedbackGains(wpi::StringRef dataset) {
+  auto ff = std::get<0>(m_gains.ff);
+  FeedforwardGains g{Ks_t(ff[0]), Kv_t(ff[1]), Ka_t(ff[2])};
+  m_gains.fb = sysid::CalculateVelocityFeedbackGains(*m_preset, *m_params, g);
 }

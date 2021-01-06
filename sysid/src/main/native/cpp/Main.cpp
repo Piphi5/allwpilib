@@ -11,6 +11,7 @@
 #include <glass/WindowManager.h>
 #include <wpigui.h>
 
+#include "sysid/view/Analyzer.h"
 #include "sysid/view/Logger.h"
 
 namespace gui = wpi::gui;
@@ -18,6 +19,7 @@ namespace gui = wpi::gui;
 static std::unique_ptr<glass::WindowManager> gWindowManager;
 
 glass::Window* gLoggerWindow;
+glass::Window* gAnalyzerWindow;
 
 #ifdef _WIN32
 int __stdcall WinMain(void* hInstance, void* hPrevInstance, char* pCmdLine,
@@ -35,6 +37,9 @@ int main() {
 
   gLoggerWindow =
       gWindowManager->AddWindow("Logger", std::make_unique<sysid::Logger>());
+
+  gAnalyzerWindow = gWindowManager->AddWindow(
+      "Analyzer", std::make_unique<sysid::Analyzer>());
 
   // Configure save file.
   gui::ConfigurePlatformSaveFile("sysid.ini");
