@@ -15,7 +15,7 @@ wpilib_link_macos_gui(sysid)
 target_link_libraries(sysid libglassnt libglass ntcore wpigui wpimath wpiutil imgui)
 
 if (WIN32)
-    set_target_properties(glass PROPERTIES WIN32_EXECUTABLE YES)
+    set_target_properties(sysid PROPERTIES WIN32_EXECUTABLE YES)
 endif()
 
 if (WITH_TESTS)
