@@ -8,6 +8,7 @@
 
 #include <glass/Context.h>
 #include <imgui.h>
+#include <imgui_internal.h>
 #include <imgui_stdlib.h>
 #include <ntcore_cpp.h>
 #include <wpi/raw_ostream.h>
@@ -30,12 +31,6 @@ Logger::Logger() {
 
   // Initialize team number from storage.
   m_team = glass::GetStorage().GetIntRef("LoggerTeam");
-
-  // Add the tests -- display name to internal name.
-  m_tests["Quasistatic Forward"] = "slow-forward";
-  m_tests["Quasistatic Backward"] = "slow-backward";
-  m_tests["Dynamic Forward"] = "fast-forward";
-  m_tests["Dynamic Backward"] = "fast-backward";
 }
 
 void Logger::Display() {
@@ -52,8 +47,10 @@ void Logger::Display() {
 
   // Reset and clear the internal manager state.
   ImGui::SameLine();
-  if (ImGui::Button("Clear Data")) {
-    m_manager = std::make_unique<TelemetryManager>(m_params);
+  if (ImGui::Button("Reset")) {
+    m_quasistatic = 0.25;
+    m_step = 7.0;
+    m_manager = std::make_unique<TelemetryManager>(&m_quasistatic, &m_step);
   }
 
   // Add NT connection indicator.
@@ -68,36 +65,35 @@ void Logger::Display() {
   ImGui::Spacing();
   ImGui::Text("Voltage Parameters");
 
-  auto CreateVoltageParameters = [width](const char* text, double* data) {
-    ImGui::SetNextItemWidth(width / 5.0);
-    ImGui::InputDouble(text, data, 0.0, 0.0, "%.2f");
+  auto CreateVoltageParameters = [this](const char* text, double* data,
+                                        float min, float max) {
+    ImGui::SetNextItemWidth(ImGui::GetFontSize() * 6);
+    ImGui::PushItemFlag(ImGuiItemFlags_Disabled,
+                        m_manager && m_manager->IsActive());
+    float value = static_cast<float>(*data);
+    if (ImGui::SliderFloat(text, &value, min, max, "%.2f")) {
+      *data = value;
+    }
+    ImGui::PopItemFlag();
   };
 
-  CreateVoltageParameters("Quasistatic Ramp Rate (V/s)",
-                          reinterpret_cast<double*>(&m_params.quasistatic));
-  CreateVoltageParameters("Dynamic Step Voltage (V)",
-                          reinterpret_cast<double*>(&m_params.step));
-
-  // Add button to apply.
-  ImGui::SameLine(width * 0.9);
-  if (ImGui::Button("Apply")) {
-    m_manager = std::make_unique<TelemetryManager>(m_params);
-  }
+  CreateVoltageParameters("Quasistatic Ramp Rate (V/s)", &m_quasistatic, 0.10f,
+                          0.60f);
+  CreateVoltageParameters("Dynamic Step Voltage (V)", &m_step, 2.0f, 10.0f);
 
   // Create a section for tests.
   ImGui::Separator();
   ImGui::Spacing();
   ImGui::Text("Tests");
 
-  auto CreateTest = [this, width](const char* text, const char* internal,
-                                  bool run) {
+  auto CreateTest = [this, width](const char* text, const char* itext) {
     // Display buttons if we have an NT connection.
     if (m_ntConnected) {
       // Create button to run tests.
       if (ImGui::Button(text)) {
         // Open the warning message.
         ImGui::OpenPopup("Warning");
-        m_manager->BeginTest(internal);
+        m_manager->BeginTest(itext);
         m_opened = text;
       }
       if (m_opened == text && ImGui::BeginPopupModal("Warning")) {
@@ -124,14 +120,15 @@ void Logger::Display() {
     }
 
     // Show whether the tests were run or not.
+    bool run = m_manager->HasRunTest(itext);
     ImGui::SameLine(width * 0.7);
     ImGui::Text(run ? "Run" : "Not Run");
   };
 
-  for (auto it = m_tests.begin(); it != m_tests.end(); ++it) {
-    CreateTest(it->first().str().c_str(), it->second.c_str(),
-               m_manager->HasRunTest(it->second));
-  }
+  CreateTest("Quasistatic Forward", "slow-forward");
+  CreateTest("Quasistatic Backward", "slow-backward");
+  CreateTest("Dynamic Forward", "fast-forward");
+  CreateTest("Dynamic Backward", "fast-backward");
 
   // Display the path to where the JSON will be saved and a button to select the
   // location.

@@ -50,7 +50,9 @@ TEST_F(TelemetryManagerTest, Data) {
   }
 
   // Create the manager.
-  sysid::TelemetryManager manager{{0.25_V / 1_s, 7_V, 4_V}, client_inst};
+  double q = 0.25;
+  double s = 7.0;
+  sysid::TelemetryManager manager{&q, &s, client_inst};
 
   // Begin the "slow-forward" test.
   manager.BeginTest("slow-forward");

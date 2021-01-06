@@ -7,9 +7,9 @@
 #include <memory>
 #include <string>
 
+#include <glass/DataSource.h>
 #include <glass/View.h>
 #include <portable-file-dialogs.h>
-#include <wpi/StringMap.h>
 
 #include "sysid/telemetry/TelemetryManager.h"
 
@@ -30,10 +30,11 @@ class Logger : public glass::View {
   void SelectDataFolder();
   void CheckNTReset();
 
-  VoltageParameters m_params{0.25_V / 1_s, 7_V, 4_V};
+  double m_quasistatic = 0.25;
+  double m_step = 7.0;
 
   std::unique_ptr<TelemetryManager> m_manager =
-      std::make_unique<TelemetryManager>(m_params);
+      std::make_unique<TelemetryManager>(&m_quasistatic, &m_step);
 
   std::unique_ptr<pfd::select_folder> m_selector;
   std::string m_jsonLocation;
@@ -45,7 +46,5 @@ class Logger : public glass::View {
 
   std::string m_opened;
   std::string m_exception;
-
-  wpi::StringMap<std::string> m_tests;
 };
 }  // namespace sysid
