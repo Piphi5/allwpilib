@@ -6,7 +6,7 @@ model {
             // Setup the sources and headers for the application.
             sources.cpp {
                 source {
-                    srcDirs 'src/main/native/cpp'
+                    srcDirs 'src/main/native/cpp', "$buildDir/generated/cpp"
                     include '**/*.cpp'
                 }
                 exportedHeaders.srcDirs 'src/main/native/include'
