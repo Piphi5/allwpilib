@@ -60,15 +60,8 @@ void TelemetryManager::CancelActiveTest() {
     auto data = m_logger->Cancel();
     m_logger.reset();
 
-    // Create our vector of raw data.
-    std::vector<std::array<double, 10>> raw;
-    raw.reserve(data.size());
-    for (auto&& d : data) {
-      raw.push_back(d.ToArray());
-    }
-
     // Store the data in the JSON.
-    m_data[m_active] = raw;
+    m_data[m_active] = data;
 
     // Reset the active test's name and enabled state.
     m_active = "";

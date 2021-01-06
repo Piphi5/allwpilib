@@ -11,8 +11,6 @@
 #include <ntcore_cpp.h>
 #include <wpi/StringRef.h>
 
-#include "sysid/telemetry/TelemetryData.h"
-
 namespace sysid {
 /**
  * This class is responsible for logging the mechanism characterization data
@@ -37,7 +35,7 @@ class TelemetryLogger {
    * Cancels the collection of data and returns the vector with the collected
    * data. Note that this clears the internal data vector.
    */
-  std::vector<TelemetryData> Cancel();
+  std::vector<std::array<double, 10>> Cancel();
 
   /**
    * Returns whether the robot is enabled.
@@ -55,7 +53,7 @@ class TelemetryLogger {
   NT_Entry m_autospeed;
 
   // Stores the collected data and whether the robot is enabled.
-  std::vector<TelemetryData> m_data;
+  std::vector<std::array<double, 10>> m_data;
   bool m_enabled = false;
 };
 }  // namespace sysid

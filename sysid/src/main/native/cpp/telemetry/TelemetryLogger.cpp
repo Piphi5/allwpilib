@@ -4,6 +4,8 @@
 
 #include "sysid/telemetry/TelemetryLogger.h"
 
+#include <algorithm>
+
 #include <wpi/raw_ostream.h>
 
 using namespace sysid;
@@ -40,13 +42,10 @@ void TelemetryLogger::Update() {
           return;
         }
 
-        // Store the data.
-        m_data.push_back(TelemetryData{
-            units::second_t(data[0]), units::volt_t(data[1]), data[2],
-            units::volt_t(data[3]), units::volt_t(data[4]),
-            units::meter_t(data[5]), units::meter_t(data[6]),
-            units::meters_per_second_t(data[7]),
-            units::meters_per_second_t(data[8]), units::radian_t(data[9])});
+        // Convert to array and add to m_data.
+        std::array<double, 10> d;
+        std::copy_n(std::make_move_iterator(data.begin()), 10, d.begin());
+        m_data.push_back(std::move(d));
 
         // Set the autospeed value.
         nt::SetEntryValue(m_autospeed,
@@ -56,6 +55,6 @@ void TelemetryLogger::Update() {
   }
 }
 
-std::vector<TelemetryData> TelemetryLogger::Cancel() {
+std::vector<std::array<double, 10>> TelemetryLogger::Cancel() {
   return std::move(m_data);
 }
