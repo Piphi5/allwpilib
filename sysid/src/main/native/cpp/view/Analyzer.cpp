@@ -29,12 +29,12 @@ ImPlotPoint GetAccelerationVsVoltage(void* data, int idx) {
 
 ImPlotPoint GetVelocityVsTime(void* data, int idx) {
   auto& d = *static_cast<std::vector<PreparedData>*>(data);
-  return ImPlotPoint(d[idx].timestamp, d[idx].velocity);
+  return ImPlotPoint(d[idx].timestamp - d[0].timestamp, d[idx].velocity);
 }
 
 ImPlotPoint GetAccelerationVsTime(void* data, int idx) {
   auto& d = *static_cast<std::vector<PreparedData>*>(data);
-  return ImPlotPoint(d[idx].timestamp, d[idx].acceleration);
+  return ImPlotPoint(d[idx].timestamp - d[0].timestamp, d[idx].acceleration);
 }
 
 Analyzer::Analyzer() {
@@ -53,16 +53,20 @@ Analyzer::Analyzer() {
   // Configure plot data.
   m_timeDomainData.push_back(
       PlotData{"Quasistatic Velocity vs. Time", GetVelocityVsTime,
-               [this] { return &std::get<0>(m_manager->GetRawData()); }});
+               [this] { return &std::get<0>(m_manager->GetRawData()); },
+               "Time (s)", "Velocity (units/s)"});
   m_timeDomainData.push_back(
       PlotData{"Quasistatic Acceleration vs. Time", GetAccelerationVsTime,
-               [this] { return &std::get<0>(m_manager->GetRawData()); }});
+               [this] { return &std::get<0>(m_manager->GetRawData()); },
+               "Time (s)", "Acceleration (units/s/s)"});
   m_timeDomainData.push_back(
       PlotData{"Dynamic Velocity vs. Time", GetVelocityVsTime,
-               [this] { return &std::get<1>(m_manager->GetRawData()); }});
+               [this] { return &std::get<1>(m_manager->GetRawData()); },
+               "Time (s)", "Velocity (units/s)"});
   m_timeDomainData.push_back(
       PlotData{"Dynamic Acceleration vs. Time", GetAccelerationVsTime,
-               [this] { return &std::get<1>(m_manager->GetRawData()); }});
+               [this] { return &std::get<1>(m_manager->GetRawData()); },
+               "Time (s)", "Acceleration (units/s/s)"});
 }
 
 void Analyzer::Display() {
@@ -83,6 +87,7 @@ void Analyzer::Display() {
         // If we run into an error here, let's just ignore it and make the user
         // explicitly select their file.
         *m_location = "";
+        static_cast<void>(e);
       }
     } else {
       *m_location = "";
@@ -114,8 +119,9 @@ void Analyzer::Display() {
     ImGui::Spacing();
     ImGui::Text(
         "Units:              %s\n"
-        "Units Per Rotation: %.4f",
-        m_unit.c_str(), m_factor);
+        "Units Per Rotation: %.4f\n"
+        "Type:               %s",
+        m_unit.c_str(), m_factor, m_type.name);
   }
 
   // Function that displays a read-only value.
@@ -163,18 +169,16 @@ void Analyzer::Display() {
       ShowDiagnostics("Time-Domain Diagnostics");
 
       auto size = ImGui::GetIO().DisplaySize;
-      ImGui::SetNextWindowSize(ImVec2(size.x / 3, size.y * 0.8));
+      ImGui::SetNextWindowSize(ImVec2(size.x / 3, size.y * 0.9));
 
       if (ImGui::BeginPopupModal("Time-Domain Diagnostics")) {
         for (auto&& data : m_timeDomainData) {
-          if (ImGui::CollapsingHeader(data.name)) {
-            ImPlot::FitNextPlotAxes();
-            ImPlot::SetNextMarkerStyle(IMPLOT_AUTO, 2);
-            if (ImPlot::BeginPlot(data.name)) {
-              ImPlot::PlotScatter("", data.getter, data.data(),
-                                  data.data()->size());
-              ImPlot::EndPlot();
-            }
+          ImPlot::FitNextPlotAxes();
+          ImPlot::SetNextMarkerStyle(IMPLOT_AUTO, 2);
+          if (ImPlot::BeginPlot(data.name, data.xlabel, data.ylabel)) {
+            ImPlot::PlotScatter("", data.getter, data.data(),
+                                data.data()->size());
+            ImPlot::EndPlot();
           }
         }
         if (ImGui::Button("Close")) {
@@ -193,6 +197,7 @@ void Analyzer::Display() {
       ImGui::Text("Please Select a JSON File");
     } else {
       // Allow the user to select a feedback controller preset.
+      ImGui::Spacing();
       ImGui::SetNextItemWidth(ImGui::GetFontSize() * 10);
       if (ImGui::Combo("Gain Preset", &m_selectedPreset, kPresetNames,
                        IM_ARRAYSIZE(kPresetNames))) {
@@ -289,7 +294,7 @@ void Analyzer::Display() {
         ImGui::SetCursorPosX(ImGui::GetFontSize() * 17);
 
         if (ImGui::SliderFloat(text, &val, min, max, "%.1f", power)) {
-          *data = val;
+          *data = static_cast<double>(val);
           Calculate();
         }
       };
