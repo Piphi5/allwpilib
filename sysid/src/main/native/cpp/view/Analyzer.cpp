@@ -97,6 +97,7 @@ void Analyzer::Display() {
     if (!m_manager) {
       ImGui::Text("Please Select a JSON File");
     } else {
+      float beginY = ImGui::GetCursorPosY();
       ShowGain("Ks", &m_ff[0]);
       ShowGain("Kv", &m_ff[1]);
       ShowGain("Ka", &m_ff[2]);
@@ -108,6 +109,19 @@ void Analyzer::Display() {
       }
 
       ShowGain("r-squared", &m_rs);
+      float endY = ImGui::GetCursorPosY();
+
+      // Come back to the starting y pos.
+      ImGui::SetCursorPosY(beginY);
+
+      auto ShowDiagnostics = [](const char* text) {
+        ImGui::SetCursorPosX(ImGui::GetFontSize() * 15);
+      };
+
+      ShowDiagnostics("Voltage-Domain Diagnostics");
+      ShowDiagnostics("Time-Domain Diagnostics");
+
+      ImGui::SetCursorPosY(endY);
     }
   }
   if (ImGui::CollapsingHeader("Feedback Analysis")) {
@@ -121,8 +135,63 @@ void Analyzer::Display() {
       if (ImGui::Combo("Gain Preset", &m_selectedPreset, kPresetNames,
                        IM_ARRAYSIZE(kPresetNames))) {
         m_preset = m_presets[kPresetNames[m_selectedPreset]];
+        m_presetModified = false;
         Calculate();
       }
+
+      if (m_presetModified) {
+        ImGui::SameLine();
+        ImGui::TextDisabled("(modified)");
+      }
+
+      float beginY = ImGui::GetCursorPosY();
+      // Show our feedback controller preset values.
+      ImGui::SetNextItemWidth(ImGui::GetFontSize() * 4);
+      double value = m_preset.outputConversionFactor * 12;
+      if (ImGui::InputDouble("Max Controller Output", &value, 0.0, 0.0,
+                             "%.1f") &&
+          value > 0) {
+        m_preset.outputConversionFactor = value / 12.0;
+        m_presetModified = true;
+        Calculate();
+      }
+
+      auto ShowPresetValue = [this](const char* text, double* data,
+                                    float cursorX = 0.0f) {
+        if (cursorX > 0) {
+          ImGui::SetCursorPosX(cursorX);
+        }
+
+        ImGui::SetNextItemWidth(ImGui::GetFontSize() * 4);
+        if (ImGui::InputDouble(text, data, 0.0, 0.0, "%.4f") && *data > 0) {
+          m_presetModified = true;
+          Calculate();
+        }
+      };
+
+      // Show controller period.
+      ShowPresetValue("Controller Period (s)",
+                      reinterpret_cast<double*>(&m_preset.period));
+
+      // Show whether the controller gains are time-normalized.
+      if (ImGui::Checkbox("Time-Normalized?", &m_preset.normalized)) {
+        m_presetModified = true;
+        Calculate();
+      }
+      float endY = ImGui::GetCursorPosY();
+
+      // Show position/velocity measurement delay.
+      ImGui::SetCursorPosY(beginY);
+      ShowPresetValue(
+          "Position Measurement Delay (s)",
+          reinterpret_cast<double*>(&m_preset.positionMeasurementDelay),
+          ImGui::GetFontSize() * 17);
+      ShowPresetValue(
+          "Velocity Measurement Delay (s)",
+          reinterpret_cast<double*>(&m_preset.velocityMeasurementDelay),
+          ImGui::GetFontSize() * 17);
+
+      ImGui::SetCursorPosY(endY);
 
       ImGui::Separator();
       ImGui::Spacing();
@@ -139,7 +208,7 @@ void Analyzer::Display() {
       ImGui::Spacing();
 
       // Show Kp and Kd.
-      float beginY = ImGui::GetCursorPosY();
+      beginY = ImGui::GetCursorPosY();
       ImGui::SetNextItemWidth(ImGui::GetFontSize() * 4);
       ImGui::InputDouble("Kp", &m_Kp, 0.0, 0.0, "%.3f",
                          ImGuiInputTextFlags_ReadOnly);
@@ -155,7 +224,7 @@ void Analyzer::Display() {
                                  float max, float power = 2.0) {
         float val = *data;
         ImGui::SetNextItemWidth(ImGui::GetFontSize() * 5);
-        ImGui::SetCursorPosX(ImGui::GetFontSize() * 7);
+        ImGui::SetCursorPosX(ImGui::GetFontSize() * 17);
 
         if (ImGui::SliderFloat(text, &val, min, max, "%.1f", power)) {
           *data = val;
