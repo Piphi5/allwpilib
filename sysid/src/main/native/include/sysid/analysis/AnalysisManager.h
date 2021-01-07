@@ -5,12 +5,12 @@
 #pragma once
 
 #include <array>
+#include <map>
 #include <string>
 #include <tuple>
 #include <vector>
 
 #include <wpi/SmallVector.h>
-#include <wpi/StringMap.h>
 #include <wpi/StringRef.h>
 #include <wpi/json.h>
 
@@ -44,6 +44,10 @@ class AnalysisManager {
 
   static constexpr const char* kKeys[] = {"Combined", "Forward", "Backward"};
   static constexpr double kMotionThreshold = 0.0508;
+
+  // Represents one "set" of data. 0 is slow tests, 1 is fast tests.
+  using Storage =
+      std::tuple<std::vector<PreparedData>, std::vector<PreparedData>>;
 
   // Struct for feedforward and feedback gains.
   struct Gains {
@@ -89,11 +93,14 @@ class AnalysisManager {
    */
   double GetFactor() const { return m_factor; }
 
- private:
-  // Represents one "set" of data. 0 is slow tests, 1 is fast tests.
-  using Storage =
-      std::tuple<std::vector<PreparedData>, std::vector<PreparedData>>;
+  /**
+   * Returns a reference to the iterator of the currently selected datset.
+   * Unfortunately, due to ImPlot internals, the reference cannot be const so
+   * the user should be careful not to change any data.
+   */
+  Storage& GetRawData() { return m_datasets.at(kKeys[*m_dataset]); }
 
+ private:
   /**
    * Converts the raw data into "prepared data", after performing various
    * operations such as trimming, computing acceleration, etc.
@@ -112,7 +119,7 @@ class AnalysisManager {
 
   // JSON data and trimmed data.
   wpi::json m_data;
-  wpi::StringMap<Storage> m_datasets;
+  std::map<std::string, Storage> m_datasets;
   int* m_dataset;
 
   // The analysis type and the units factor.
