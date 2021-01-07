@@ -39,8 +39,10 @@ std::tuple<double, double> sysid::CalculatePositionFeedbackGains(
     controller.LatencyCompensate(system, preset.period,
                                  preset.positionMeasurementDelay);
 
-    return std::make_tuple(controller.K(0, 0) * preset.outputConversionFactor,
-                           controller.K(0, 1) * preset.outputConversionFactor);
+    return std::make_tuple(
+        controller.K(0, 0) * preset.outputConversionFactor,
+        controller.K(0, 1) * preset.outputConversionFactor /
+            (preset.normalized ? 1 : preset.period.to<double>()));
   }
 
   // This is our special model to avoid instabilities in the LQR.

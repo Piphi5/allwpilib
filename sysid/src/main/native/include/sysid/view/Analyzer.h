@@ -47,6 +47,8 @@ class Analyzer : public glass::View {
   int m_selectedLoopType = 1;
   int m_selectedPreset = 0;
 
+  bool m_presetModified = false;
+
   // Feedforward and feedback gains.
   std::vector<double> m_ff;
   double m_rs;
