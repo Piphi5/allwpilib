@@ -9,13 +9,15 @@
 
 #include <wpi/StringMap.h>
 #include <wpi/raw_istream.h>
+#include <wpi/raw_ostream.h>
 
 using namespace sysid;
 
 AnalysisManager::AnalysisManager(wpi::StringRef path,
                                  FeedbackControllerPreset* preset,
-                                 LQRParameters* params)
-    : m_preset(preset), m_params(params) {
+                                 FeedbackControllerLoopType* type,
+                                 LQRParameters* params, int* dataset)
+    : m_dataset(dataset), m_preset(preset), m_loopType(type), m_params(params) {
   // Read JSON from the specified path.
   std::error_code ec;
   wpi::raw_fd_istream is{path, ec};
@@ -30,21 +32,16 @@ AnalysisManager::AnalysisManager(wpi::StringRef path,
   m_type = sysid::analysis::FromName(m_data.at("test").get<std::string>());
 
   // Get the rotation -> output units factor from the JSON.
+  m_unit = m_data.at("units").get<std::string>();
   m_factor = m_data.at("unitsPerRotation").get<double>();
 
   // Prepare the data.
   PrepareData();
 }
 
-const AnalysisManager::Gains& AnalysisManager::SelectDataset(
-    wpi::StringRef dataset) {
-  m_dataset = dataset;
-  return Recalculate();
-}
-
-const AnalysisManager::Gains& AnalysisManager::Recalculate() {
-  CalculateFeedforwardGains(m_dataset);
-  CalculateFeedbackGains(m_dataset);
+const AnalysisManager::Gains& AnalysisManager::Calculate() {
+  CalculateFeedforwardGains(kKeys[*m_dataset]);
+  CalculateFeedbackGains(kKeys[*m_dataset]);
   return m_gains;
 }
 
@@ -172,6 +169,11 @@ void AnalysisManager::CalculateFeedforwardGains(wpi::StringRef dataset) {
 
 void AnalysisManager::CalculateFeedbackGains(wpi::StringRef dataset) {
   auto ff = std::get<0>(m_gains.ff);
-  FeedforwardGains g{Ks_t(ff[0]), Kv_t(ff[1]), Ka_t(ff[2])};
-  m_gains.fb = sysid::CalculateVelocityFeedbackGains(*m_preset, *m_params, g);
+  FeedforwardGains g{ff[0], ff[1], ff[2]};
+
+  if (*m_loopType == FeedbackControllerLoopType::kPosition) {
+    m_gains.fb = sysid::CalculatePositionFeedbackGains(*m_preset, *m_params, g);
+  } else {
+    m_gains.fb = sysid::CalculateVelocityFeedbackGains(*m_preset, *m_params, g);
+  }
 }

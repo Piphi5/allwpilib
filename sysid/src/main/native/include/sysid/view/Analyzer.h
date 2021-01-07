@@ -24,29 +24,38 @@ class Analyzer : public glass::View {
       "Default",    "WPILib (2020-)",  "WPILib (Pre-2020)", "CTRE (New)",
       "CTRE (Old)", "REV (Brushless)", "REV (Brushed)"};
 
+  static constexpr const char* kLoopTypes[] = {"Position", "Velocity"};
+
   Analyzer();
 
   void Display() override;
 
  private:
   void SelectFile();
+  void Calculate();
+
+  bool first = true;
+  std::string m_exception;
 
   // Everything related to feedback controller calculations.
   wpi::StringMap<FeedbackControllerPreset> m_presets;
   FeedbackControllerPreset m_preset = presets::kDefault;
-  LQRParameters m_params{1_m, 1.5_mps, 7_V};
-  int m_selected = 0;
+  FeedbackControllerLoopType m_loopType = FeedbackControllerLoopType::kVelocity;
+  LQRParameters m_params{1, 1.5, 7};
+
+  int m_selectedDataset = 0;
+  int m_selectedLoopType = 1;
+  int m_selectedPreset = 0;
 
   // Feedforward and feedback gains.
-  AnalysisManager::Gains m_gains;
+  std::vector<double> m_ff;
+  double m_rs;
+  double m_Kp;
+  double m_Kd;
 
-  // References to the feedforward gain vector and r-squared.
-  const std::vector<double>& m_ff = std::get<0>(m_gains.ff);
-  const double& m_rs = std::get<1>(m_gains.ff);
-
-  // Reference to Kp and Kd.
-  const Kp_t& m_Kp = std::get<0>(m_gains.fb);
-  const Kd_t& m_Kd = std::get<1>(m_gains.fb);
+  // Units
+  double m_factor;
+  std::string m_unit;
 
   // Data analysis
   std::unique_ptr<AnalysisManager> m_manager;
@@ -54,6 +63,6 @@ class Analyzer : public glass::View {
 
   // File manipulation
   std::unique_ptr<pfd::open_file> m_selector;
-  std::string m_location;
+  std::string* m_location;
 };
 }  // namespace sysid

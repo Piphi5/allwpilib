@@ -17,7 +17,7 @@ namespace sysid {
  */
 struct FeedbackControllerPreset {
   /** The conversion factor between volts and the final controller output. */
-  units::unit_t<units::inverse<units::volt>> outputConversionFactor;
+  double outputConversionFactor;
 
   /** The period at which the controller runs. */
   units::second_t period;
@@ -32,27 +32,32 @@ struct FeedbackControllerPreset {
   units::second_t velocityMeasurementDelay;
 };
 
+/** The loop type for the feedback controller */
+enum class FeedbackControllerLoopType { kPosition, kVelocity };
+
 namespace presets {
-constexpr FeedbackControllerPreset kDefault{12 / 12_V, 20_ms, true, 0_s, 0_s};
+constexpr FeedbackControllerPreset kDefault{1.0, 20_ms, true, 0_s, 0_s};
 
 constexpr FeedbackControllerPreset kWPILibNew{kDefault};
-constexpr FeedbackControllerPreset kWPILibOld{1 / 12_V, 50_ms, false, 0_s, 0_s};
+constexpr FeedbackControllerPreset kWPILibOld{1.0 / 12.0, 50_ms, false, 0_s,
+                                              0_s};
 
 // https://phoenix-documentation.readthedocs.io/en/latest/ch14_MCSensor.html#changing-velocity-measurement-parameters
 // 100 ms sampling period + a moving average window size of 64 (i.e. a 64-tap
 // FIR) = 100 / 2 ms + (64 - 1) / 2 ms = 81.5 ms.
-constexpr FeedbackControllerPreset kCTRENew{1 / 12_V, 1_ms, true, 0_s, 81.5_ms};
-constexpr FeedbackControllerPreset kCTREOld{1023 / 12_V, 1_ms, false, 0_s,
+constexpr FeedbackControllerPreset kCTRENew{1.0 / 12.0, 1_ms, true, 0_s,
+                                            81.5_ms};
+constexpr FeedbackControllerPreset kCTREOld{1023.0 / 12.0, 1_ms, false, 0_s,
                                             81.5_ms};
 
 // According to a Rev employee on the FRC Discord the window size is 40 so delay
 // = (40-1)/2 ms = 19.5 ms.
-constexpr FeedbackControllerPreset kREVBrushless{1 / 12_V, 1_ms, false, 0_s,
+constexpr FeedbackControllerPreset kREVBrushless{1.0 / 12.0, 1_ms, false, 0_s,
                                                  19.5_ms};
 
 // https://www.revrobotics.com/content/sw/max/sw-docs/cpp/classrev_1_1_c_a_n_encoder.html#a7e6ce792bc0c0558fb944771df572e6a
 // 64-tap FIR = (64 - 1) / 2 ms = 31.5 ms delay.
-constexpr FeedbackControllerPreset kREVBrushed{1 / 12_V, 1_ms, false, 0_s,
+constexpr FeedbackControllerPreset kREVBrushed{1.0 / 12.0, 1_ms, false, 0_s,
                                                31.5_ms};
 }  // namespace presets
 }  // namespace sysid

@@ -4,23 +4,11 @@
 
 #pragma once
 
-#include <units/acceleration.h>
-#include <units/length.h>
-#include <units/velocity.h>
-#include <units/voltage.h>
-
 #include <tuple>
 
 namespace sysid {
-using Kp_t = decltype(1_V / 1_m);
-using Kd_t = decltype(1_V / 1_mps);
 
-using Ks_t = decltype(1_V);
-using Kv_t = decltype(1_V / 1_mps);
-using Ka_t = decltype(1_V / 1_mps_sq);
-
-using FeedforwardGains = std::tuple<Ks_t, Kv_t, Ka_t>;
-
+using FeedforwardGains = std::tuple<double, double, double>;
 struct FeedbackControllerPreset;
 
 /**
@@ -29,13 +17,13 @@ struct FeedbackControllerPreset;
  */
 struct LQRParameters {
   /** The maximum allowable deviation in position. */
-  units::meter_t qp;
+  double qp;
 
   /** The maximum allowable deviation in velocity. */
-  units::meters_per_second_t qv;
+  double qv;
 
   /** The maximum allowable control effort */
-  units::volt_t r;
+  double r;
 };
 
 /**
@@ -47,7 +35,7 @@ struct LQRParameters {
  *                         gains.
  * @param feedforwardGains The feedforward gains for the system.
  */
-std::tuple<Kp_t, Kd_t> CalculatePositionFeedbackGains(
+std::tuple<double, double> CalculatePositionFeedbackGains(
     const FeedbackControllerPreset& preset, const LQRParameters& params,
     const FeedforwardGains& feedforwardGains);
 
@@ -60,7 +48,7 @@ std::tuple<Kp_t, Kd_t> CalculatePositionFeedbackGains(
  *                         gains.
  * @param feedforwardGains The feedforward gains for the system.
  */
-std::tuple<Kp_t, Kd_t> CalculateVelocityFeedbackGains(
+std::tuple<double, double> CalculateVelocityFeedbackGains(
     const FeedbackControllerPreset& preset, const LQRParameters& params,
     const FeedforwardGains& feedforwardGains);
 }  // namespace sysid

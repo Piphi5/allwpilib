@@ -48,30 +48,31 @@ class AnalysisManager {
   // Struct for feedforward and feedback gains.
   struct Gains {
     std::tuple<std::vector<double>, double> ff;
-    std::tuple<Kp_t, Kd_t> fb;
+    std::tuple<double, double> fb;
   };
 
   /**
    * Constructs an instance of the analysis manager with the given path and
-   * pointer to the feedback controller preset and LQR parameters. The caller is
-   * responsible for the ownership of the preset and params.
+   * parameters. The caller is responsible for maintaining ownership of the
+   * pointers passed to this constructor.
+   *
+   * @param path    The path to the JSON containing the data.
+   * @param preset  The feedback controller preset.
+   * @param type    The loop type (i.e. position or velocity) for the feedback
+   *                controller.
+   * @param params  The LQR parameters for the feedback controller.
+   * @param dataset The dataset (i.e. Combined, Forward, Backward) to run
+   *                analysis on.
    */
   explicit AnalysisManager(wpi::StringRef path,
                            FeedbackControllerPreset* preset,
-                           LQRParameters* params);
+                           FeedbackControllerLoopType* type,
+                           LQRParameters* params, int* dataset);
 
   /**
-   * Selects a given dataset and recalculates the feedback and feedforward gains
-   * based on the dataset. This returns the newly calculated gains for the
-   * dataset.
+   * Calculates the gains with the newest data.
    */
-  const Gains& SelectDataset(wpi::StringRef dataset);
-  const Gains& SelectDataset(int idx) { return SelectDataset(kKeys[idx]); }
-
-  /**
-   * Recalculates the gains with the newest preset and params.
-   */
-  const Gains& Recalculate();
+  const Gains& Calculate();
 
   /**
    * Returns the analysis type of the current instance (read from the JSON).
@@ -79,9 +80,14 @@ class AnalysisManager {
   const AnalysisType& GetAnalysisType() const { return m_type; }
 
   /**
-   * Returns the currently calculated gains.
+   * Returns the units of analysis.
    */
-  const Gains& GetGains() const { return m_gains; }
+  const std::string& GetUnit() const { return m_unit; }
+
+  /**
+   * Returns the factor (a.k.a units per rotation) for analysis.
+   */
+  double GetFactor() const { return m_factor; }
 
  private:
   // Represents one "set" of data. 0 is slow tests, 1 is fast tests.
@@ -107,14 +113,16 @@ class AnalysisManager {
   // JSON data and trimmed data.
   wpi::json m_data;
   wpi::StringMap<Storage> m_datasets;
-  std::string m_dataset;
+  int* m_dataset;
 
   // The analysis type and the units factor.
   AnalysisType m_type;
   double m_factor;
+  std::string m_unit;
 
   // Preset and params for the feedback controller calculation.
   FeedbackControllerPreset* m_preset;
+  FeedbackControllerLoopType* m_loopType;
   LQRParameters* m_params;
 
   // Feedforward and feedback gains.
