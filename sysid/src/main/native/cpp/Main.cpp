@@ -71,7 +71,7 @@ int main() {
       about = false;
     }
     if (ImGui::BeginPopupModal("About")) {
-      ImGui::Text("Glass: A different kind of dashboard");
+      ImGui::Text("SysId: System Identification for Robot Mechanisms");
       ImGui::Separator();
       ImGui::Text("v%s", GetWPILibVersion());
       if (ImGui::Button("Close")) {

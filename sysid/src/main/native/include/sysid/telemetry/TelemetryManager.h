@@ -4,14 +4,13 @@
 
 #pragma once
 
-#include <units/time.h>
-#include <units/voltage.h>
-
 #include <algorithm>
 #include <memory>
 #include <string>
 
 #include <ntcore_cpp.h>
+#include <units/time.h>
+#include <units/voltage.h>
 #include <wpi/SmallVector.h>
 #include <wpi/StringRef.h>
 #include <wpi/json.h>
