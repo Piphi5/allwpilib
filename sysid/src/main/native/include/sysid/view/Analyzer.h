@@ -41,6 +41,9 @@ class Analyzer : public glass::View {
     const char* name;
     ImPlotPoint (*getter)(void*, int);
     std::function<std::vector<PreparedData>*()> data;
+
+    const char* xlabel;
+    const char* ylabel;
   };
 
   bool first = true;

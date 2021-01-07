@@ -78,7 +78,7 @@ void AnalysisManager::PrepareData() {
   TrimQuasistatic(&data["slow-backward"]);
 
   // Compute acceleration from quasistatic data.
-  auto ComputeAcceleration = [](Data* d) {
+  auto ComputeAcceleration = [](Data* d, bool removeZero = true) {
     std::vector<PreparedData> prepared;
     prepared.reserve(d->size() - 2);
 
@@ -94,7 +94,7 @@ void AnalysisManager::PrepareData() {
 
       // Sometimes, if the encoder velocities are the same, it will register
       // zero acceleration. Do not include these values.
-      if (acc != 0) {
+      if (acc != 0 || !removeZero) {
         prepared.push_back({pt[0], pt[3], pt[5], pt[7], acc, 0.0});
       }
     }
@@ -102,8 +102,8 @@ void AnalysisManager::PrepareData() {
     return prepared;
   };
 
-  auto sf = ComputeAcceleration(&data["slow-forward"]);
-  auto sb = ComputeAcceleration(&data["slow-backward"]);
+  auto sf = ComputeAcceleration(&data["slow-forward"], false);
+  auto sb = ComputeAcceleration(&data["slow-backward"], false);
   auto ff = ComputeAcceleration(&data["fast-forward"]);
   auto fb = ComputeAcceleration(&data["fast-backward"]);
 
