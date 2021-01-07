@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
@@ -16,6 +17,8 @@
 #include "sysid/analysis/AnalysisType.h"
 #include "sysid/analysis/FeedbackAnalysis.h"
 #include "sysid/analysis/FeedbackControllerPreset.h"
+
+struct ImPlotPoint;
 
 namespace sysid {
 class Analyzer : public glass::View {
@@ -33,6 +36,12 @@ class Analyzer : public glass::View {
  private:
   void SelectFile();
   void Calculate();
+
+  struct PlotData {
+    const char* name;
+    ImPlotPoint (*getter)(void*, int);
+    std::function<std::vector<PreparedData>*()> data;
+  };
 
   bool first = true;
   std::string m_exception;
@@ -62,6 +71,9 @@ class Analyzer : public glass::View {
   // Data analysis
   std::unique_ptr<AnalysisManager> m_manager;
   AnalysisType m_type;
+
+  // Plotting
+  std::vector<PlotData> m_timeDomainData;
 
   // File manipulation
   std::unique_ptr<pfd::open_file> m_selector;

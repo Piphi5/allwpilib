@@ -4,6 +4,8 @@
 
 #include "sysid/view/Analyzer.h"
 
+#include <implot.h>
+
 #include <glass/Context.h>
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -12,6 +14,28 @@
 #include <wpi/raw_ostream.h>
 
 using namespace sysid;
+
+// Methods that return various ImPlotPoint values for plotting, given a
+// const_iterator to the data.
+ImPlotPoint GetVelocityVsVoltage(void* data, int idx) {
+  auto& d = *static_cast<std::vector<PreparedData>*>(data);
+  return ImPlotPoint(d[idx].voltage, d[idx].velocity);
+}
+
+ImPlotPoint GetAccelerationVsVoltage(void* data, int idx) {
+  auto& d = *static_cast<std::vector<PreparedData>*>(data);
+  return ImPlotPoint(d[idx].voltage, d[idx].acceleration);
+}
+
+ImPlotPoint GetVelocityVsTime(void* data, int idx) {
+  auto& d = *static_cast<std::vector<PreparedData>*>(data);
+  return ImPlotPoint(d[idx].timestamp, d[idx].velocity);
+}
+
+ImPlotPoint GetAccelerationVsTime(void* data, int idx) {
+  auto& d = *static_cast<std::vector<PreparedData>*>(data);
+  return ImPlotPoint(d[idx].timestamp, d[idx].acceleration);
+}
 
 Analyzer::Analyzer() {
   // Fill the StringMap with preset values.
@@ -25,6 +49,20 @@ Analyzer::Analyzer() {
 
   // Load the last file location from storage if it exists.
   m_location = glass::GetStorage().GetStringRef("AnalyzerJSONLocation");
+
+  // Configure plot data.
+  m_timeDomainData.push_back(
+      PlotData{"Quasistatic Velocity vs. Time", GetVelocityVsTime,
+               [this] { return &std::get<0>(m_manager->GetRawData()); }});
+  m_timeDomainData.push_back(
+      PlotData{"Quasistatic Acceleration vs. Time", GetAccelerationVsTime,
+               [this] { return &std::get<0>(m_manager->GetRawData()); }});
+  m_timeDomainData.push_back(
+      PlotData{"Dynamic Velocity vs. Time", GetVelocityVsTime,
+               [this] { return &std::get<1>(m_manager->GetRawData()); }});
+  m_timeDomainData.push_back(
+      PlotData{"Dynamic Acceleration vs. Time", GetAccelerationVsTime,
+               [this] { return &std::get<1>(m_manager->GetRawData()); }});
 }
 
 void Analyzer::Display() {
@@ -116,10 +154,34 @@ void Analyzer::Display() {
 
       auto ShowDiagnostics = [](const char* text) {
         ImGui::SetCursorPosX(ImGui::GetFontSize() * 15);
+        if (ImGui::Button(text)) {
+          ImGui::OpenPopup(text);
+        }
       };
 
       ShowDiagnostics("Voltage-Domain Diagnostics");
       ShowDiagnostics("Time-Domain Diagnostics");
+
+      auto size = ImGui::GetIO().DisplaySize;
+      ImGui::SetNextWindowSize(ImVec2(size.x / 3, size.y * 0.8));
+
+      if (ImGui::BeginPopupModal("Time-Domain Diagnostics")) {
+        for (auto&& data : m_timeDomainData) {
+          if (ImGui::CollapsingHeader(data.name)) {
+            ImPlot::FitNextPlotAxes();
+            ImPlot::SetNextMarkerStyle(IMPLOT_AUTO, 2);
+            if (ImPlot::BeginPlot(data.name)) {
+              ImPlot::PlotScatter("", data.getter, data.data(),
+                                  data.data()->size());
+              ImPlot::EndPlot();
+            }
+          }
+        }
+        if (ImGui::Button("Close")) {
+          ImGui::CloseCurrentPopup();
+        }
+        ImGui::EndPopup();
+      }
 
       ImGui::SetCursorPosY(endY);
     }
