@@ -77,6 +77,7 @@ class Analyzer : public glass::View {
 
   // Plotting
   std::vector<PlotData> m_timeDomainData;
+  std::vector<PlotData> m_voltageDomainData;
 
   // File manipulation
   std::unique_ptr<pfd::open_file> m_selector;

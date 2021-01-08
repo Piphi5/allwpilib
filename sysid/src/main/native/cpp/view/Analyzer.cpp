@@ -15,16 +15,52 @@
 
 using namespace sysid;
 
+struct VoltageDomainPlotData {
+  const std::vector<PreparedData>* vec;
+  const std::vector<double>& ff;
+  AnalysisType type;
+};
+
 // Methods that return various ImPlotPoint values for plotting, given a
 // const_iterator to the data.
 ImPlotPoint GetVelocityVsVoltage(void* data, int idx) {
-  auto& d = *static_cast<std::vector<PreparedData>*>(data);
-  return ImPlotPoint(d[idx].voltage, d[idx].velocity);
+  auto& d = *static_cast<VoltageDomainPlotData*>(data);
+  auto& p = d.vec->at(idx);
+  if (d.type == analysis::kElevator) {
+    return ImPlotPoint(p.voltage - d.ff[3] -
+                           std::copysign(d.ff[0], p.velocity) -
+                           d.ff[2] * p.acceleration,
+                       p.velocity);
+  }
+  if (d.type == analysis::kArm) {
+    return ImPlotPoint(p.voltage - std::copysign(d.ff[0], p.velocity) -
+                           d.ff[2] * p.acceleration - d.ff[3] * p.cos,
+                       p.velocity);
+  }
+
+  return ImPlotPoint(
+      p.voltage - std::copysign(d.ff[0], p.velocity) - d.ff[2] * p.acceleration,
+      p.velocity);
 }
 
 ImPlotPoint GetAccelerationVsVoltage(void* data, int idx) {
-  auto& d = *static_cast<std::vector<PreparedData>*>(data);
-  return ImPlotPoint(d[idx].voltage, d[idx].acceleration);
+  auto& d = *static_cast<VoltageDomainPlotData*>(data);
+  auto& p = d.vec->at(idx);
+  if (d.type == analysis::kElevator) {
+    return ImPlotPoint(p.voltage - d.ff[3] -
+                           std::copysign(d.ff[0], p.velocity) -
+                           d.ff[1] * p.velocity,
+                       p.acceleration);
+  }
+  if (d.type == analysis::kArm) {
+    return ImPlotPoint(p.voltage - std::copysign(d.ff[0], p.velocity) -
+                           d.ff[1] * p.velocity - d.ff[3] * p.cos,
+                       p.acceleration);
+  }
+
+  return ImPlotPoint(
+      p.voltage - std::copysign(d.ff[0], p.velocity) - d.ff[1] * p.velocity,
+      p.acceleration);
 }
 
 ImPlotPoint GetVelocityVsTime(void* data, int idx) {
@@ -67,6 +103,17 @@ Analyzer::Analyzer() {
       PlotData{"Dynamic Acceleration vs. Time", GetAccelerationVsTime,
                [this] { return &std::get<1>(m_manager->GetRawData()); },
                "Time (s)", "Acceleration (units/s/s)"});
+
+  m_voltageDomainData.push_back(PlotData{
+      "Quasistatic Velocity vs. Velocity-Portion Voltage", GetVelocityVsVoltage,
+      [this] { return &std::get<0>(m_manager->GetRawData()); },
+      "Velocity-Portion Voltage (V)", "Velocity (units/s)"});
+
+  m_voltageDomainData.push_back(
+      PlotData{"Dynamic Acceleration vs. Acceleration-Portion Voltage",
+               GetAccelerationVsVoltage,
+               [this] { return &std::get<1>(m_manager->GetRawData()); },
+               "Velocity-Portion Voltage (V)", "Acceleration (units/s/s)"});
 }
 
 void Analyzer::Display() {
@@ -158,6 +205,7 @@ void Analyzer::Display() {
       // Come back to the starting y pos.
       ImGui::SetCursorPosY(beginY);
 
+      // Create buttons to show diagnostics.
       auto ShowDiagnostics = [](const char* text) {
         ImGui::SetCursorPosX(ImGui::GetFontSize() * 15);
         if (ImGui::Button(text)) {
@@ -171,16 +219,89 @@ void Analyzer::Display() {
       auto size = ImGui::GetIO().DisplaySize;
       ImGui::SetNextWindowSize(ImVec2(size.x / 3, size.y * 0.9));
 
-      if (ImGui::BeginPopupModal("Time-Domain Diagnostics")) {
-        for (auto&& data : m_timeDomainData) {
+      // Show voltage domain diagnostic plots.
+      if (ImGui::BeginPopupModal("Voltage-Domain Diagnostics")) {
+        // Loop through the plot data sources that we have.
+        for (size_t i = 0; i < m_voltageDomainData.size(); ++i) {
+          auto& data = m_voltageDomainData[i];
+          // Make sure that the axes are properly scaled to show all data and
+          // set the marker size.
           ImPlot::FitNextPlotAxes();
-          ImPlot::SetNextMarkerStyle(IMPLOT_AUTO, 2);
+
+          // Create the plot.
           if (ImPlot::BeginPlot(data.name, data.xlabel, data.ylabel)) {
-            ImPlot::PlotScatter("", data.getter, data.data(),
-                                data.data()->size());
+            // For voltage domain data, we need to create a struct with the raw
+            // data, feedforward values, and the type of analysis.
+            VoltageDomainPlotData d{data.data(), m_ff, m_type};
+
+            // Plot the scatter data.
+            ImPlot::SetNextMarkerStyle(IMPLOT_AUTO, 2,
+                                       ImVec4(0.0f, 0.0f, 1.0f, 1.0f), 0);
+            ImPlot::PlotScatterG("", data.getter, &d, data.data()->size());
+
+            // Plot the line of best fit.
+            auto minE =
+                std::min_element(data.data()->cbegin(), data.data()->cend(),
+                                 [i](const auto& a, const auto& b) {
+                                   if (i == 0)
+                                     return a.velocity < b.velocity;
+                                   return a.acceleration < b.acceleration;
+                                 });
+            auto maxE =
+                std::max_element(data.data()->cbegin(), data.data()->cend(),
+                                 [i](const auto& a, const auto& b) {
+                                   if (i == 0)
+                                     return a.velocity < b.velocity;
+                                   return a.acceleration < b.acceleration;
+                                 });
+
+            double min;
+            double max;
+            if (i == 0) {
+              min = minE->velocity;
+              max = maxE->velocity;
+            } else {
+              min = minE->acceleration;
+              max = maxE->acceleration;
+            }
+
+            double x[2] = {m_ff[i + 1] * min, m_ff[i + 1] * max};
+            double y[2] = {min, max};
+
+            ImPlot::SetNextLineStyle(ImVec4(1.0f, 0.0f, 0.0f, 1.0));
+            ImPlot::PlotLine("", &x[0], &y[0], 2);
+
             ImPlot::EndPlot();
           }
         }
+        // Button to close popup.
+        if (ImGui::Button("Close")) {
+          ImGui::CloseCurrentPopup();
+        }
+        ImGui::EndPopup();
+      }
+
+      ImGui::SetNextWindowSize(ImVec2(size.x / 3, size.y * 0.9));
+
+      // Show time domain diagnostic plots.
+      if (ImGui::BeginPopupModal("Time-Domain Diagnostics")) {
+        // Loop through the plot data sources that we have.
+        for (auto&& data : m_timeDomainData) {
+          // Make sure that the axes are properly scaled to show all data and
+          // set the marker size.
+          ImPlot::FitNextPlotAxes();
+          ImPlot::SetNextMarkerStyle(IMPLOT_AUTO, 2);
+
+          // Create the plot.
+          if (ImPlot::BeginPlot(data.name, data.xlabel, data.ylabel)) {
+            // For time domain data, only the raw data is required, so we can
+            // plot it directly.
+            ImPlot::PlotScatterG("", data.getter, data.data(),
+                                 data.data()->size());
+            ImPlot::EndPlot();
+          }
+        }
+        // Button to close popup.
         if (ImGui::Button("Close")) {
           ImGui::CloseCurrentPopup();
         }
