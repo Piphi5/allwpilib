@@ -79,6 +79,8 @@ void AnalysisManager::PrepareData() {
 
   // Compute acceleration from quasistatic data.
   auto ComputeAcceleration = [](Data* d, bool removeZero = true) {
+    int window = 4;
+    int step = window / 2;
     std::vector<PreparedData> prepared;
     prepared.reserve(d->size() - 2);
 
@@ -87,10 +89,10 @@ void AnalysisManager::PrepareData() {
     }
 
     // Compute acceleration and add it to the vector.
-    for (size_t i = 1; i < d->size() - 1; ++i) {
+    for (size_t i = step; i < d->size() - step; ++i) {
       auto& pt = d->at(i);
-      double acc = (d->at(i + 1)[7] - d->at(i - 1)[7]) /
-                   (d->at(i + 1)[0] - d->at(i - 1)[0]);
+      double acc = (d->at(i + step)[7] - d->at(i - step)[7]) /
+                   (d->at(i + step)[0] - d->at(i - step)[0]);
 
       // Sometimes, if the encoder velocities are the same, it will register
       // zero acceleration. Do not include these values.

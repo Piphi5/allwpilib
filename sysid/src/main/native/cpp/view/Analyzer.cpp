@@ -229,14 +229,16 @@ void Analyzer::Display() {
           ImPlot::FitNextPlotAxes();
 
           // Create the plot.
-          if (ImPlot::BeginPlot(data.name, data.xlabel, data.ylabel)) {
+          if (ImPlot::BeginPlot(data.name, data.xlabel, data.ylabel,
+                                ImVec2(-1, 0), ImPlotFlags_None,
+                                ImPlotAxisFlags_NoGridLines,
+                                ImPlotAxisFlags_NoGridLines)) {
             // For voltage domain data, we need to create a struct with the raw
             // data, feedforward values, and the type of analysis.
             VoltageDomainPlotData d{data.data(), m_ff, m_type};
 
             // Plot the scatter data.
-            ImPlot::SetNextMarkerStyle(IMPLOT_AUTO, 2,
-                                       ImVec4(0.0f, 0.0f, 1.0f, 1.0f), 0);
+            ImPlot::SetNextMarkerStyle(IMPLOT_AUTO, 1, IMPLOT_AUTO_COL, 0);
             ImPlot::PlotScatterG("", data.getter, &d, data.data()->size());
 
             // Plot the line of best fit.
@@ -268,8 +270,8 @@ void Analyzer::Display() {
             double x[2] = {m_ff[i + 1] * min, m_ff[i + 1] * max};
             double y[2] = {min, max};
 
-            ImPlot::SetNextLineStyle(ImVec4(1.0f, 0.0f, 0.0f, 1.0));
-            ImPlot::PlotLine("", &x[0], &y[0], 2);
+            ImPlot::SetNextLineStyle(IMPLOT_AUTO_COL, 1.5);
+            ImPlot::PlotLine("##Fit", &x[0], &y[0], 2);
 
             ImPlot::EndPlot();
           }
@@ -290,7 +292,7 @@ void Analyzer::Display() {
           // Make sure that the axes are properly scaled to show all data and
           // set the marker size.
           ImPlot::FitNextPlotAxes();
-          ImPlot::SetNextMarkerStyle(IMPLOT_AUTO, 2);
+          ImPlot::SetNextMarkerStyle(IMPLOT_AUTO, 1, IMPLOT_AUTO_COL, 0);
 
           // Create the plot.
           if (ImPlot::BeginPlot(data.name, data.xlabel, data.ylabel)) {
@@ -421,11 +423,11 @@ void Analyzer::Display() {
       };
 
       if (m_selectedLoopType == 0) {
-        ShowLQRParam("Max Position Error (units)", &m_params.qp, 0.05, 40.0);
+        ShowLQRParam("Max Position Error (units)", &m_params.qp, 0.05f, 40.0f);
       }
 
-      ShowLQRParam("Max Velocity Error (units/s)", &m_params.qv, 0.05, 40.0);
-      ShowLQRParam("Max Control Effort (V)", &m_params.r, 0.1, 12.0, 1.0);
+      ShowLQRParam("Max Velocity Error (units/s)", &m_params.qv, 0.05f, 40.0f);
+      ShowLQRParam("Max Control Effort (V)", &m_params.r, 0.1f, 12.0f, 1.0f);
     }
   }
 
