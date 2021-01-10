@@ -43,7 +43,7 @@ class AnalysisManager {
       "slow-forward", "slow-backward", "fast-forward", "fast-backward"};
 
   static constexpr const char* kKeys[] = {"Combined", "Forward", "Backward"};
-  static constexpr double kMotionThreshold = 0.2;
+  static constexpr double kMotionThreshold = 0.1;
 
   // Represents one "set" of data. 0 is slow tests, 1 is fast tests.
   using Storage =
