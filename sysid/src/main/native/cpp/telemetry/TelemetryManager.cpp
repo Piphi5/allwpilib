@@ -28,12 +28,13 @@ void TelemetryManager::Update() {
   if (m_logger->IsEnabled()) {
     // Update the speed entry.
     if (wpi::StringRef(m_active).startswith("fast")) {
-      m_speed = *m_step / 12.0;
+      m_speed = *m_step / 12.0 *
+                (wpi::StringRef(m_active).endswith("backward") ? -1 : 1);
     } else if (wpi::StringRef(m_active).startswith("slow")) {
       m_speed =
           (*m_quasistatic * (units::second_t(wpi::Now() * 1E-6) - m_start))
               .to<double>() /
-          12.0;
+          12.0 * (wpi::StringRef(m_active).endswith("backward") ? -1 : 1);
     }
   } else {
     m_speed = 0.0;
@@ -62,6 +63,8 @@ void TelemetryManager::CancelActiveTest() {
 
     // Store the data in the JSON.
     m_data[m_active] = data;
+
+    std::cout << m_data.dump() << std::endl;
 
     // Reset the active test's name and enabled state.
     m_active = "";
