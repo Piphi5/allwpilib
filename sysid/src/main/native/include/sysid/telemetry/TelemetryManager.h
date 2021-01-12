@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <memory>
 #include <string>
+#include <utility>
 
 #include <ntcore_cpp.h>
 #include <units/time.h>
@@ -51,6 +52,17 @@ class TelemetryManager {
   void CancelActiveTest();
 
   /**
+   * Registers a callback to call when a test is canceled.
+   *
+   * @param callback A function that takes in two doubles -- the distances
+   *                 traveled by the left and right encoders.
+   */
+  void RegisterCancellationCallback(
+      std::function<void(double, double)> callback) const {
+    m_callbacks.push_back(std::move(callback));
+  }
+
+  /**
    * Returns the JSON object that contains all of the collected data.
    */
   const wpi::json& GetJSON() const { return m_data; }
@@ -79,6 +91,7 @@ class TelemetryManager {
   bool m_hasEnabled;
 
   wpi::SmallVector<std::string, 5> m_tests;
+  mutable wpi::SmallVector<std::function<void(double, double)>, 2> m_callbacks;
 
   NT_Inst m_inst;
   wpi::json m_data;

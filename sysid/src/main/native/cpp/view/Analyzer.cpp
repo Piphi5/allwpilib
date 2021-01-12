@@ -127,7 +127,9 @@ void Analyzer::Display() {
     if (!m_location->empty() && wpi::sys::fs::exists(*m_location)) {
       try {
         m_manager = std::make_unique<AnalysisManager>(
-            *m_location, &m_preset, &m_loopType, &m_params, &m_selectedDataset);
+            *m_location, AnalysisManager::Settings{
+                             &m_preset, &m_loopType, &m_params, &m_threshold,
+                             &m_window, &m_selectedDataset});
         m_type = m_manager->GetAnalysisType();
         Calculate();
       } catch (const std::exception& e) {
@@ -154,8 +156,8 @@ void Analyzer::Display() {
   // button. Also show the units and the units per rotation.
   if (m_manager) {
     ImGui::SetNextItemWidth(ImGui::GetFontSize() * 15);
-    if (ImGui::Combo("Dataset", &m_selectedDataset, AnalysisManager::kKeys,
-                     IM_ARRAYSIZE(AnalysisManager::kKeys))) {
+    if (ImGui::Combo("Dataset", &m_selectedDataset, AnalysisManager::kDatasets,
+                     IM_ARRAYSIZE(AnalysisManager::kDatasets))) {
       Calculate();
     }
     ImGui::SameLine(width - ImGui::CalcTextSize("Reset").x);
@@ -462,7 +464,9 @@ void Analyzer::SelectFile() {
 
     // Create the analysis manager.
     m_manager = std::make_unique<AnalysisManager>(
-        *m_location, &m_preset, &m_loopType, &m_params, &m_selectedDataset);
+        *m_location,
+        AnalysisManager::Settings{&m_preset, &m_loopType, &m_params,
+                                  &m_threshold, &m_window, &m_selectedDataset});
     m_type = m_manager->GetAnalysisType();
     Calculate();
   }
