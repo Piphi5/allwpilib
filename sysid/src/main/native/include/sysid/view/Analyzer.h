@@ -74,6 +74,8 @@ class Analyzer : public glass::View {
   // Data analysis
   std::unique_ptr<AnalysisManager> m_manager;
   AnalysisType m_type;
+  int m_window = 4;
+  double m_threshold = 0.2;
 
   // Plotting
   std::vector<PlotData> m_timeDomainData;

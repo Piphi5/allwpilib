@@ -5,14 +5,12 @@
 #pragma once
 
 #include <array>
-#include <map>
 #include <string>
 #include <tuple>
 #include <vector>
 
-#include <wpi/SmallVector.h>
+#include <wpi/StringMap.h>
 #include <wpi/StringRef.h>
-#include <wpi/json.h>
 
 #include "sysid/analysis/AnalysisType.h"
 #include "sysid/analysis/FeedbackAnalysis.h"
@@ -33,63 +31,97 @@ struct PreparedData {
   double cos;
 };
 
+/** The raw data that is contained within the JSON. */
+using RawData = std::array<double, 10>;
+
 /**
  * Manages analysis of data. Each instance of this class represents a JSON file
  * that is read from storage.
  */
 class AnalysisManager {
  public:
-  static constexpr std::array<const char*, 4> kJsonDataKeys{
-      "slow-forward", "slow-backward", "fast-forward", "fast-backward"};
+  /**
+   * Represents settings for an instance of the analysis manager. This contains
+   * information about the feedback controller preset, loop type, motion
+   * threshold, acceleration window size, LQR parameters, and the selected
+   * dataset.
+   *
+   * The creator of this struct is responsible for managing the lifetime of the
+   * pointers contained within the struct.
+   */
+  struct Settings {
+    /** The feedback controller preset used to calculate gains. */
+    FeedbackControllerPreset* preset;
 
-  static constexpr const char* kKeys[] = {"Combined", "Forward", "Backward"};
-  static constexpr double kMotionThreshold = 0.1;
+    /** The feedback controller loop type (position or velocity). */
+    FeedbackControllerLoopType* type;
 
-  // Represents one "set" of data. 0 is slow tests, 1 is fast tests.
-  using Storage =
-      std::tuple<std::vector<PreparedData>, std::vector<PreparedData>>;
+    /** LQR parameters used for feedback gain calculation. */
+    LQRParameters* lqr;
 
-  // Struct for feedforward and feedback gains.
+    /** The motion threshold (units/s) for trimming quasistatic test data */
+    double* motionThreshold;
+
+    /** The window size for computing acceleration */
+    int* windowSize;
+
+    /** The dataset that is being analyzed. */
+    int* dataset;
+  };
+
+  /** Stores feedforward and feedback gains */
   struct Gains {
     std::tuple<std::vector<double>, double> ff;
     std::tuple<double, double> fb;
   };
 
-  /**
-   * Constructs an instance of the analysis manager with the given path and
-   * parameters. The caller is responsible for maintaining ownership of the
-   * pointers passed to this constructor.
-   *
-   * @param path    The path to the JSON containing the data.
-   * @param preset  The feedback controller preset.
-   * @param type    The loop type (i.e. position or velocity) for the feedback
-   *                controller.
-   * @param params  The LQR parameters for the feedback controller.
-   * @param dataset The dataset (i.e. Combined, Forward, Backward) to run
-   *                analysis on.
-   */
-  explicit AnalysisManager(wpi::StringRef path,
-                           FeedbackControllerPreset* preset,
-                           FeedbackControllerLoopType* type,
-                           LQRParameters* params, int* dataset);
+  /** The keys (which contain sysid data) that are in the JSON to analyze. */
+  static constexpr const char* kJsonDataKeys[] = {
+      "slow-forward", "slow-backward", "fast-forward", "fast-backward"};
+
+  /** The names of the various datasets to analyze. */
+  static constexpr const char* kDatasets[] = {"Combined", "Forward",
+                                              "Backward"};
+
+  /** Represents one "set" of data. 0 is slow tests, 1 is fast tests. */
+  using Storage =
+      std::tuple<std::vector<PreparedData>, std::vector<PreparedData>>;
 
   /**
-   * Calculates the gains with the newest data.
+   * Constructs an instance of the analysis manager with the given path (to the
+   * JSON) and analysis manager settings.
+   *
+   * @param path     The path to the JSON containing the sysid data.
+   * @param settings The settings for this instance of the analysis manager.
    */
-  const Gains& Calculate();
+  AnalysisManager(wpi::StringRef path, Settings settings);
+
+  /**
+   * Calculates the gains with the latest data (from the pointers in the
+   * settings struct that this instance was constructed with).
+   *
+   * @return The latest feedforward and feedback gains.
+   */
+  Gains Calculate();
 
   /**
    * Returns the analysis type of the current instance (read from the JSON).
+   *
+   * @return The analysis type.
    */
   const AnalysisType& GetAnalysisType() const { return m_type; }
 
   /**
    * Returns the units of analysis.
+   *
+   * @return The units of analysis.
    */
   const std::string& GetUnit() const { return m_unit; }
 
   /**
-   * Returns the factor (a.k.a units per rotation) for analysis.
+   * Returns the factor (a.k.a. units per rotation) for analysis.
+   *
+   * @return The factor (a.k.a. units per rotation) for analysis.
    */
   double GetFactor() const { return m_factor; }
 
@@ -97,42 +129,58 @@ class AnalysisManager {
    * Returns a reference to the iterator of the currently selected datset.
    * Unfortunately, due to ImPlot internals, the reference cannot be const so
    * the user should be careful not to change any data.
+   *
+   * @return A reference to the raw internal data.
    */
-  Storage& GetRawData() { return m_datasets.at(kKeys[*m_dataset]); }
+  Storage& GetRawData() { return m_datasets[kDatasets[*m_settings.dataset]]; }
+
+  /**
+   * Trims the existing raw data vector to remove any values where the voltage
+   * is less than or equal to zero or where the velocity is less than the
+   * provided threshold.
+   *
+   * @param data       The raw data.
+   * @param threshold  The motion threshold -- all velocities below this value
+   *                   will be discarded.
+   * @param drivetrain Whether the data also contains data for the right side of
+   *                   the drivetrain.
+   */
+  static void TrimQuasistaticData(std::vector<RawData>* data, double threshold,
+                                  bool drivetrain = false);
+
+  /**
+   * Computes acceleration from the given raw data and returns a new vector of
+   * prepared data that can be used for feedforward and feedback analysis.
+   *
+   * @param data   The raw data.
+   * @param window The window size to compute acceleration.
+   *
+   * @return The prepared data.
+   */
+  static std::vector<PreparedData> ComputeAcceleration(
+      const std::vector<RawData>& data, int window);
+
+  /**
+   * Trims the step voltage data such that we discard all data before the point
+   * of maximum acceleration.
+   *
+   * @param data The step voltage (dynamic test) data to trim.
+   */
+  static void TrimStepVoltageData(std::vector<PreparedData>* data);
 
  private:
-  /**
-   * Converts the raw data into "prepared data", after performing various
-   * operations such as trimming, computing acceleration, etc.
-   */
-  void PrepareData();
+  // This is used to store the various datasets (i.e. Combined, Forward,
+  // Backward, etc.)
+  wpi::StringMap<Storage> m_datasets;
 
-  /**
-   * Calculates feedforward gains for the given dataset.
-   */
-  void CalculateFeedforwardGains(wpi::StringRef dataset);
+  // The settings for this instance. This contains pointers to the feedback
+  // controller preset, LQR parameters, acceleration window size, etc.
+  Settings m_settings;
 
-  /**
-   * Calculates feedback gains for the given dataset.
-   */
-  void CalculateFeedbackGains(wpi::StringRef dataset);
-
-  // JSON data and trimmed data.
-  wpi::json m_data;
-  std::map<std::string, Storage> m_datasets;
-  int* m_dataset;
-
-  // The analysis type and the units factor.
+  // Miscellaneous data from the JSON -- the analysis type, units per rotation
+  // (factor), and the units.
   AnalysisType m_type;
   double m_factor;
   std::string m_unit;
-
-  // Preset and params for the feedback controller calculation.
-  FeedbackControllerPreset* m_preset;
-  FeedbackControllerLoopType* m_loopType;
-  LQRParameters* m_params;
-
-  // Feedforward and feedback gains.
-  Gains m_gains;
 };
 }  // namespace sysid

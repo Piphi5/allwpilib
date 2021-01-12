@@ -64,7 +64,12 @@ void TelemetryManager::CancelActiveTest() {
     // Store the data in the JSON.
     m_data[m_active] = data;
 
-    std::cout << m_data.dump() << std::endl;
+    // Call the cancellation callbacks.
+    for (auto&& callback : m_callbacks) {
+      auto l = data.back()[4];
+      auto r = data.back()[5];
+      callback(l, r);
+    }
 
     // Reset the active test's name and enabled state.
     m_active = "";
