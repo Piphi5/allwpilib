@@ -4,8 +4,6 @@
 
 #include "sysid/analysis/FeedforwardAnalysis.h"
 
-#include <string_view>
-
 #include "sysid/analysis/AnalysisManager.h"
 #include "sysid/analysis/OLS.h"
 
@@ -34,10 +32,10 @@ std::tuple<std::vector<double>, double> sysid::CalculateFeedforwardGains(
       olsData.push_back(pt.acceleration);
 
       // Add test-specific variables.
-      if (type.name == std::string_view("Elevator")) {
+      if (type.mechanism == Mechanism::kElevator) {
         // Add the gravity term (for Kg)
         olsData.push_back(1.0);
-      } else if (type.name == std::string_view("Arm")) {
+      } else if (type.mechanism == Mechanism::kArm) {
         // Add the cosine term (for Kcos)
         olsData.push_back(pt.cos);
       }

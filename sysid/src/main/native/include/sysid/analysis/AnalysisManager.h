@@ -11,6 +11,7 @@
 
 #include <wpi/StringMap.h>
 #include <wpi/StringRef.h>
+#include <wpi/json.h>
 
 #include "sysid/analysis/AnalysisType.h"
 #include "sysid/analysis/FeedbackAnalysis.h"
@@ -80,8 +81,10 @@ class AnalysisManager {
       "slow-forward", "slow-backward", "fast-forward", "fast-backward"};
 
   /** The names of the various datasets to analyze. */
-  static constexpr const char* kDatasets[] = {"Combined", "Forward",
-                                              "Backward"};
+  static constexpr const char* kDatasets[] = {
+      "Combined",      "Forward",        "Backward",
+      "Left Forward",  "Left Backward",  "Left Combined",
+      "Right Forward", "Right Backward", "Right Combined"};
 
   /** Represents one "set" of data. 0 is slow tests, 1 is fast tests. */
   using Storage =
@@ -95,6 +98,11 @@ class AnalysisManager {
    * @param settings The settings for this instance of the analysis manager.
    */
   AnalysisManager(wpi::StringRef path, Settings settings);
+
+  /**
+   * Prepares data from the JSON and stores the output in the StringMap.
+   */
+  void PrepareData();
 
   /**
    * Calculates the gains with the latest data (from the pointers in the
@@ -154,11 +162,13 @@ class AnalysisManager {
    *
    * @param data   The raw data.
    * @param window The window size to compute acceleration.
+   * @param right  Whether acceleration should be computed on the right side of
+   *               the drivetrain.
    *
    * @return The prepared data.
    */
   static std::vector<PreparedData> ComputeAcceleration(
-      const std::vector<RawData>& data, int window);
+      const std::vector<RawData>& data, int window, bool right = false);
 
   /**
    * Trims the step voltage data such that we discard all data before the point
@@ -169,8 +179,19 @@ class AnalysisManager {
   static void TrimStepVoltageData(std::vector<PreparedData>* data);
 
  private:
+  /**
+   * Special function that prepares drivetrain data. This is called
+   * automatically from PrepareData() if m_type.mechanism ==
+   * Mechanism::kDrivetrain.
+   *
+   * @param data The data to prepare. This should be moved in from
+   *             PrepareData().
+   */
+  void PrepareDataDrivetrain(wpi::StringMap<std::vector<RawData>>&& data);
+
   // This is used to store the various datasets (i.e. Combined, Forward,
   // Backward, etc.)
+  wpi::json m_json;
   wpi::StringMap<Storage> m_datasets;
 
   // The settings for this instance. This contains pointers to the feedback

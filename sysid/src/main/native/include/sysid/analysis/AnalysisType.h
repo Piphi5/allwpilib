@@ -4,35 +4,43 @@
 
 #pragma once
 
-#include <string>
-#include <string_view>
+#include <cstddef>
 
 namespace wpi {
 class StringRef;
 }  // namespace wpi
 
 namespace sysid {
+
+enum class Mechanism { kDrivetrain, kElevator, kArm, kSimple };
+
 struct AnalysisType {
-  /** The name of the analysis type */
-  const char* name;
+  /** The mechanism for which analysis is being performed. */
+  Mechanism mechanism;
 
   /** The number of independent variables for feedforward analysis */
   size_t independentVariables;
 
+  /** Display name for the analysis type. */
+  const char* name;
+
+  /** Compares equality of two AnalysisType structs. */
   constexpr bool operator==(const AnalysisType& rhs) const {
-    return std::string_view(name) == rhs.name;
+    return mechanism == rhs.mechanism &&
+           independentVariables == rhs.independentVariables;
   }
 
+  /** Compares inequality of two AnalysisType structs. */
   constexpr bool operator!=(const AnalysisType& rhs) const {
     return !operator==(rhs);
   }
 };
 
 namespace analysis {
-constexpr AnalysisType kDrivetrain{"Drivetrain", 3};
-constexpr AnalysisType kElevator{"Elevator", 4};
-constexpr AnalysisType kArm{"Arm", 4};
-constexpr AnalysisType kSimple{"Simple", 3};
+constexpr AnalysisType kDrivetrain{Mechanism::kDrivetrain, 3, "Drivetrain"};
+constexpr AnalysisType kElevator{Mechanism::kElevator, 4, "Elevator"};
+constexpr AnalysisType kArm{Mechanism::kArm, 4, "Arm"};
+constexpr AnalysisType kSimple{Mechanism::kSimple, 3, "Simple"};
 
 AnalysisType FromName(wpi::StringRef name);
 }  // namespace analysis
