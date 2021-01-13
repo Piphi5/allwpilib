@@ -6,86 +6,107 @@
 
 #include <algorithm>
 #include <system_error>
+#include <utility>
 
 #include <wpi/raw_ostream.h>
 #include <wpi/timestamp.h>
 
 using namespace sysid;
 
-void TelemetryManager::BeginTest(wpi::StringRef path) {
-  m_tests.push_back(path);
-  m_active = path;
-  m_logger =
-      std::make_unique<TelemetryLogger>([this] { return m_speed; }, m_inst);
+TelemetryManager::TelemetryManager(Settings settings)
+    : m_settings(std::move(settings)),
+      m_nt(nt::GetDefaultInstance()),
+      m_autospeed(m_nt.GetEntry("/SmartDashboard/SysIdAutoSpeed")),
+      m_telemetry(m_nt.GetEntry("/SmartDashboard/SysIdTelemetry")),
+      m_fieldInfo(m_nt.GetEntry("/FMSInfo/FMSControlData")) {
+  // Add listeners for our readable entries.
+  m_nt.AddListener(m_telemetry);
+  m_nt.AddListener(m_fieldInfo);
+}
+
+void TelemetryManager::BeginTest(wpi::StringRef name) {
+  // Create a new test params instance for this test.
+  m_params = TestParameters{name.startswith("fast"), name.endswith("forward"),
+                            wpi::Now() * 1E-6};
+
+  // Add this test to the list of running tests and set the running flag.
+  m_tests.push_back(name);
+  m_isRunningTest = true;
+}
+
+void TelemetryManager::EndTest() {
+  // Disable the running flag and store the data in the JSON.
+  m_isRunningTest = false;
+  m_data[m_tests.back()] = m_params.data;
+
+  // Send a zero command over NT.
+  nt::SetEntryValue(m_autospeed, nt::Value::MakeDouble(0.0));
 }
 
 void TelemetryManager::Update() {
-  // Don't do anything if we aren't running a test right now.
-  if (!m_logger) {
+  // If there is no test running, these is nothing to update.
+  if (!m_isRunningTest) {
     return;
   }
 
-  if (m_logger->IsEnabled()) {
-    // Update the speed entry.
-    if (wpi::StringRef(m_active).startswith("fast")) {
-      m_speed = *m_step / 12.0 *
-                (wpi::StringRef(m_active).endswith("backward") ? -1 : 1);
-    } else if (wpi::StringRef(m_active).startswith("slow")) {
-      m_speed =
-          (*m_quasistatic * (units::second_t(wpi::Now() * 1E-6) - m_start))
-              .to<double>() /
-          12.0 * (wpi::StringRef(m_active).endswith("backward") ? -1 : 1);
+  // Poll NT data.
+  bool wasEnabled = m_params.enabled;
+  for (auto&& event : m_nt.PollListener()) {
+    if (event.entry == m_fieldInfo && event.value && event.value->IsDouble()) {
+      // Get the FMS Control Word and look at the first bit for enabled state.
+      uint32_t controlWord = event.value->GetDouble();
+      m_params.enabled = (controlWord & 0x01) != 0 ? true : false;
+    } else if (m_params.enabled && event.entry == m_telemetry && event.value &&
+               event.value->IsDoubleArray()) {
+      // Get the telemetry array and add it to our data (after doing a size
+      // check).
+      auto data = event.value->GetDoubleArray();
+      if (data.size() == 10) {
+        std::array<double, 10> d;
+        std::copy_n(std::make_move_iterator(data.begin()), 10, d.begin());
+        m_params.data.push_back(std::move(d));
+      }
     }
-  } else {
-    m_speed = 0.0;
   }
 
-  m_logger->Update();
-
-  // If we just enabled, store that value.
-  if (!m_hasEnabled && m_logger->IsEnabled()) {
-    m_hasEnabled = true;
-    m_start = units::second_t(wpi::Now() * 1E-6);
+  // If the robot wasn't enabled before, but now is, reset the start time.
+  if (!wasEnabled && m_params.enabled) {
+    m_params.start = wpi::Now() * 1E-6;
   }
 
-  // If the robot disabled after being enabled at one point during data
-  // collection, cancel the test.
-  if (m_hasEnabled && !m_logger->IsEnabled()) {
-    CancelActiveTest();
+  // Set autospeed value if the robot is enabled, otherwise set it to zero for
+  // safety.
+  if (m_params.enabled) {
+    double now = wpi::Now() * 1E-6;
+    double volts =
+        (m_params.fast
+             ? *m_settings.stepVoltage
+             : ((now - m_params.start) * *m_settings.quasistaticRampRate)) *
+        (m_params.forward ? 1 : -1);
+    nt::SetEntryValue(m_autospeed, nt::Value::MakeDouble(volts / 12.0));
+  }
+
+  // If the robot was previously enabled, but isn't now, it means that we should
+  // cancel the test.
+  if (wasEnabled && !m_params.enabled) {
+    EndTest();
   }
 }
 
-void TelemetryManager::CancelActiveTest() {
-  if (m_logger) {
-    // Retrieve the data from the logger and reset it.
-    auto data = m_logger->Cancel();
-    m_logger.reset();
-
-    // Store the data in the JSON.
-    m_data[m_active] = data;
-
-    // Call the cancellation callbacks.
-    for (auto&& callback : m_callbacks) {
-      auto l = data.back()[4];
-      auto r = data.back()[5];
-      callback(l, r);
-    }
-
-    // Reset the active test's name and enabled state.
-    m_active = "";
-    m_hasEnabled = false;
-  }
-}
-
-void TelemetryManager::SaveJSON(wpi::StringRef path) {
+void TelemetryManager::SaveJSON(wpi::StringRef location) {
   std::error_code ec;
-  wpi::raw_fd_ostream os{path, ec};
+  wpi::raw_fd_ostream os{location, ec};
+
+  // Use the same data for now while things are sorted out.
+  m_data["test"] = "Drivetrain";
+  m_data["units"] = "Meters";
+  m_data["unitsPerRotation"] = 1.0;
 
   if (ec) {
-    throw std::runtime_error("Cannot write to file: " + path.str());
+    throw std::runtime_error("Cannot write to file: " + location.str());
   }
 
   os << m_data;
   os.flush();
-  wpi::outs() << "Wrote JSON to: " << path << "\n";
+  wpi::outs() << "Wrote JSON to: " << location << "\n";
 }

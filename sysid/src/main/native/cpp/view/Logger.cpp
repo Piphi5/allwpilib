@@ -50,7 +50,8 @@ void Logger::Display() {
   if (ImGui::Button("Reset")) {
     m_quasistatic = 0.25;
     m_step = 7.0;
-    m_manager = std::make_unique<TelemetryManager>(&m_quasistatic, &m_step);
+    m_manager = std::make_unique<TelemetryManager>(
+        TelemetryManager::Settings{&m_quasistatic, &m_step});
   }
 
   // Add NT connection indicator.
@@ -108,7 +109,7 @@ void Logger::Display() {
 
         const char* button = m_manager->IsActive() ? "End Test" : "Close";
         if (ImGui::Button(button)) {
-          m_manager->CancelActiveTest();
+          m_manager->EndTest();
           ImGui::CloseCurrentPopup();
           m_opened = "";
         }

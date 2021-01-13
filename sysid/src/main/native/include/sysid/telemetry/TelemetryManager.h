@@ -4,102 +4,124 @@
 
 #pragma once
 
-#include <algorithm>
-#include <memory>
+#include <array>
 #include <string>
-#include <utility>
+#include <vector>
 
+#include <glass/networktables/NetworkTablesHelper.h>
 #include <ntcore_cpp.h>
 #include <units/time.h>
-#include <units/voltage.h>
-#include <wpi/SmallVector.h>
 #include <wpi/StringRef.h>
 #include <wpi/json.h>
 
-#include "sysid/telemetry/TelemetryLogger.h"
-
 namespace sysid {
 /**
- * Manages all telemetry for a round of tests and saves the data to a JSON.
+ * This class is reponsible for collecting data from the robot and storing it
+ * inside a JSON.
  */
 class TelemetryManager {
  public:
   /**
-   * Constructs a telemetry manager with the given quasistatic ramp rate, step
-   * voltage and NT instance. The caller must take care of the lifetime of the
-   * two pointers passed to this constructor.
+   * Represents settings for an instance of the TelemetryManager class. This
+   * contains information about the quasistatic ramp rate for slow tests and the
+   * step voltage for fast tests.
+   *
+   * The creator of this struct is responsible for managing the lifetime of the
+   * pointers contained within the struct.
    */
-  explicit TelemetryManager(double* quasistatic, double* step,
-                            NT_Inst instance = nt::GetDefaultInstance())
-      : m_inst(instance), m_quasistatic(quasistatic), m_step(step) {}
+  struct Settings {
+    double* quasistaticRampRate;
+    double* stepVoltage;
+  };
 
   /**
-   * Begins the test with the given name and stores the data. The test is
-   * automatically canceled when the robot is disabled, but can also be canceled
-   * manually with CancelTest().
+   * Constructs an instance of the telemetry manager with the provided settings.
+   *
+   * @param settings The settings for this instance of the telemetry manager.
+   */
+  explicit TelemetryManager(Settings settings);
+
+  /**
+   * Begins a test with the given parameters.
+   *
+   * @param name The name of the test.
    */
   void BeginTest(wpi::StringRef name);
 
   /**
-   * This periodically checks for the disabled state for the robot and
-   * performs other checks. It must be called periodically by the user.
+   * Ends the currently running test. If there is no test running, this is a
+   * no-op.
+   */
+  void EndTest();
+
+  /**
+   * Updates the telemetry manager -- this adds a new autospeed entry and
+   * collects newest data from the robot. This must be called periodically by
+   * the user.
    */
   void Update();
 
   /**
-   * Cancels the actively running test.
-   */
-  void CancelActiveTest();
-
-  /**
-   * Registers a callback to call when a test is canceled.
+   * Saves a JSON with the stored data at the given location.
    *
-   * @param callback A function that takes in two doubles -- the distances
-   *                 traveled by the left and right encoders.
+   * @param location The location to save the JSON at.
    */
-  void RegisterCancellationCallback(
-      std::function<void(double, double)> callback) const {
-    m_callbacks.push_back(std::move(callback));
-  }
-
-  /**
-   * Returns the JSON object that contains all of the collected data.
-   */
-  const wpi::json& GetJSON() const { return m_data; }
-
-  /**
-   * Saves all of the collected data to a JSON at the given path.
-   */
-  void SaveJSON(wpi::StringRef path);
+  void SaveJSON(wpi::StringRef location);
 
   /**
    * Returns whether a test is currently running.
+   *
+   * @return Whether a test is currently running.
    */
-  bool IsActive() const { return m_logger.operator bool(); }
+  bool IsActive() const { return m_isRunningTest; }
 
   /**
-   * Checks if a test has run or is currently running.
+   * Returns whether the specified test is running or has run.
+   *
+   * @param name The test to check.
+   *
+   * @return Whether the specified test is running or has run.
    */
-  bool HasRunTest(wpi::StringRef test) const {
-    return std::find(m_tests.begin(), m_tests.end(), test.str()) !=
-           m_tests.end();
+  bool HasRunTest(wpi::StringRef name) const {
+    return std::find(m_tests.cbegin(), m_tests.cend(), name) != m_tests.end();
   }
 
  private:
-  std::unique_ptr<TelemetryLogger> m_logger;
-  std::string m_active;
-  bool m_hasEnabled;
+  /**
+   * Stores information about a currently running test. This information
+   * includes whether the robot will be traveling quickly (dynamic) or slowly
+   * (quasistatic), the direction of movement, the start time of the test,
+   * whether the robot is enabled, the current speed of the robot, and the
+   * collected data.
+   */
+  struct TestParameters {
+    bool fast;
+    bool forward;
+    double start;
 
-  wpi::SmallVector<std::string, 5> m_tests;
-  mutable wpi::SmallVector<std::function<void(double, double)>, 2> m_callbacks;
+    bool enabled = false;
+    double speed = 0.0;
 
-  NT_Inst m_inst;
+    std::vector<std::array<double, 10>> data{};
+  };
+
+  // Settings for this instance.
+  Settings m_settings;
+
+  // Test parameters for the currently running test.
+  TestParameters m_params;
+  bool m_isRunningTest = false;
+
+  // A list of running or already run tests.
+  std::vector<std::string> m_tests;
+
+  // Stores the test data.
   wpi::json m_data;
 
-  double* m_quasistatic;
-  double* m_step;
-
-  double m_speed = 0;
-  units::second_t m_start;
+  // NetworkTables instance and entries.
+  glass::NetworkTablesHelper m_nt;
+  NT_Entry m_autospeed;
+  NT_Entry m_telemetry;
+  NT_Entry m_fieldInfo;
 };
 }  // namespace sysid

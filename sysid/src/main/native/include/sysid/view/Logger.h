@@ -22,9 +22,7 @@ namespace sysid {
 class Logger : public glass::View {
  public:
   Logger();
-
   void Display() override;
-  void Hidden() override {}
 
  private:
   void SelectDataFolder();
@@ -34,7 +32,8 @@ class Logger : public glass::View {
   double m_step = 7.0;
 
   std::unique_ptr<TelemetryManager> m_manager =
-      std::make_unique<TelemetryManager>(&m_quasistatic, &m_step);
+      std::make_unique<TelemetryManager>(
+          TelemetryManager::Settings{&m_quasistatic, &m_step});
 
   std::unique_ptr<pfd::select_folder> m_selector;
   std::string m_jsonLocation;
