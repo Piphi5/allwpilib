@@ -5,6 +5,7 @@
 #include "sysid/analysis/AnalysisManager.h"
 
 #include <algorithm>
+#include <initializer_list>
 #include <system_error>
 
 #include <wpi/StringMap.h>
@@ -14,10 +15,25 @@
 
 using namespace sysid;
 
+/**
+ * Concatenates a list of vectors to the end of a vector. The contents of the
+ * source vectors are copied (not moved) into the new vector.
+ */
+std::vector<PreparedData> Concatenate(
+    std::vector<PreparedData> dest,
+    std::initializer_list<const std::vector<PreparedData>*> srcs) {
+  // Copy the contents of the source vectors into the dest vector.
+  for (auto ptr : srcs) {
+    dest.insert(dest.end(), ptr->cbegin(), ptr->cend());
+  }
+
+  // Return the dest vector.
+  return dest;
+}
+
 AnalysisManager::AnalysisManager(wpi::StringRef path, Settings settings)
     : m_settings(std::move(settings)) {
   // Read JSON from the specified path.
-  wpi::json json;
   std::error_code ec;
   wpi::raw_fd_istream is{path, ec};
 
@@ -25,19 +41,66 @@ AnalysisManager::AnalysisManager(wpi::StringRef path, Settings settings)
     throw std::runtime_error("Unable to read: " + path.str());
   }
 
-  is >> json;
+  is >> m_json;
 
   // Get the analysis type from the JSON.
-  m_type = sysid::analysis::FromName(json.at("test").get<std::string>());
+  m_type = sysid::analysis::FromName(m_json.at("test").get<std::string>());
 
   // Get the rotation -> output units factor from the JSON.
-  m_unit = json.at("units").get<std::string>();
-  m_factor = json.at("unitsPerRotation").get<double>();
+  m_unit = m_json.at("units").get<std::string>();
+  m_factor = m_json.at("unitsPerRotation").get<double>();
 
+  // Prepare data.
+  PrepareData();
+}
+
+// Helper function that prepares data for drivetrain.
+void AnalysisManager::PrepareDataDrivetrain(
+    wpi::StringMap<std::vector<RawData>>&& data) {
+  // Compute acceleration on all datasets.
+  int window = *m_settings.windowSize;
+  auto sfl = ComputeAcceleration(data["slow-forward"], window);
+  auto sfr = ComputeAcceleration(data["slow-forward"], window, true);
+  auto sbl = ComputeAcceleration(data["slow-backward"], window);
+  auto sbr = ComputeAcceleration(data["slow-backward"], window, true);
+  auto ffl = ComputeAcceleration(data["fast-forward"], window);
+  auto ffr = ComputeAcceleration(data["fast-forward"], window, true);
+  auto fbl = ComputeAcceleration(data["fast-backward"], window);
+  auto fbr = ComputeAcceleration(data["fast-backward"], window, true);
+
+  // Trim the step voltage data.
+  TrimStepVoltageData(&ffl);
+  TrimStepVoltageData(&ffr);
+  TrimStepVoltageData(&fbl);
+  TrimStepVoltageData(&fbr);
+
+  // Create the distinct datasets and store them in our StringMap.
+  auto sf = Concatenate(sfl, {&sfr});
+  auto sb = Concatenate(sbl, {&sbr});
+  auto ff = Concatenate(ffl, {&ffr});
+  auto fb = Concatenate(fbl, {&fbr});
+
+  m_datasets["Forward"] = std::make_tuple(sf, ff);
+  m_datasets["Backward"] = std::make_tuple(sb, fb);
+  m_datasets["Combined"] =
+      std::make_tuple(Concatenate(sf, {&sb}), Concatenate(ff, {&fb}));
+
+  m_datasets["Left Forward"] = std::make_tuple(sfl, ffl);
+  m_datasets["Left Backward"] = std::make_tuple(sbl, fbl);
+  m_datasets["Left Combined"] =
+      std::make_tuple(Concatenate(sfl, {&sbl}), Concatenate(ffl, {&fbl}));
+
+  m_datasets["Right Forward"] = std::make_tuple(sfr, ffr);
+  m_datasets["Right Backward"] = std::make_tuple(sbr, fbr);
+  m_datasets["Right Combined"] =
+      std::make_tuple(Concatenate(sfr, {&sbr}), Concatenate(ffr, {&fbr}));
+}
+
+void AnalysisManager::PrepareData() {
   // Get the major components from the JSON and store them inside a StringMap.
   wpi::StringMap<std::vector<RawData>> data;
   for (auto&& key : kJsonDataKeys) {
-    data[key] = json.at(key).get<std::vector<RawData>>();
+    data[key] = m_json.at(key).get<std::vector<RawData>>();
   }
 
   // Ensure that voltage and velocity have the same sign; apply conversion
@@ -58,6 +121,12 @@ AnalysisManager::AnalysisManager(wpi::StringRef path, Settings settings)
   TrimQuasistaticData(&data["slow-forward"], *m_settings.motionThreshold);
   TrimQuasistaticData(&data["slow-backward"], *m_settings.motionThreshold);
 
+  // If the type is drivetrain, we can use our special function from here.
+  if (m_type == analysis::kDrivetrain) {
+    PrepareDataDrivetrain(std::move(data));
+    return;
+  }
+
   // Compute acceleration on all datasets.
   auto sf = ComputeAcceleration(data["slow-forward"], *m_settings.windowSize);
   auto sb = ComputeAcceleration(data["slow-backward"], *m_settings.windowSize);
@@ -71,16 +140,8 @@ AnalysisManager::AnalysisManager(wpi::StringRef path, Settings settings)
   // Create the distinct datasets and store them in our StringMap.
   m_datasets["Forward"] = std::make_tuple(sf, ff);
   m_datasets["Backward"] = std::make_tuple(sb, fb);
-
-  std::vector<PreparedData> sc;
-  sc.insert(sc.end(), sf.begin(), sf.end());
-  sc.insert(sc.end(), sb.begin(), sb.end());
-
-  std::vector<PreparedData> fc;
-  fc.insert(fc.end(), ff.begin(), ff.end());
-  fc.insert(fc.end(), fb.begin(), fb.end());
-
-  m_datasets["Combined"] = std::make_tuple(sc, fc);
+  m_datasets["Combined"] =
+      std::make_tuple(Concatenate(sf, {&sb}), Concatenate(ff, {&fb}));
 }
 
 AnalysisManager::Gains AnalysisManager::Calculate() {
@@ -131,10 +192,9 @@ void AnalysisManager::TrimQuasistaticData(std::vector<RawData>* data,
 }
 
 std::vector<PreparedData> AnalysisManager::ComputeAcceleration(
-    const std::vector<RawData>& data, int window) {
+    const std::vector<RawData>& data, int window, bool right) {
   size_t step = window / 2;
   std::vector<PreparedData> prepared;
-  bool secondary = false;
 
   prepared.reserve(data.size() - window);
 
@@ -142,8 +202,8 @@ std::vector<PreparedData> AnalysisManager::ComputeAcceleration(
     throw std::runtime_error("The size of the data is too small.");
   }
 
-  size_t pos = secondary ? 6 : 5;
-  size_t vel = secondary ? 8 : 7;
+  size_t pos = right ? 6 : 5;
+  size_t vel = right ? 8 : 7;
 
   // Compute acceleration and add it to the vector.
   for (size_t i = step; i < data.size() - step; ++i) {

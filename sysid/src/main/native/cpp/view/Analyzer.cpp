@@ -6,6 +6,8 @@
 
 #include <implot.h>
 
+#include <algorithm>
+
 #include <glass/Context.h>
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -157,7 +159,7 @@ void Analyzer::Display() {
   if (m_manager) {
     ImGui::SetNextItemWidth(ImGui::GetFontSize() * 15);
     if (ImGui::Combo("Dataset", &m_selectedDataset, AnalysisManager::kDatasets,
-                     IM_ARRAYSIZE(AnalysisManager::kDatasets))) {
+                     m_type == analysis::kDrivetrain ? 9 : 3)) {
       Calculate();
     }
     ImGui::SameLine(width - ImGui::CalcTextSize("Reset").x);
@@ -217,6 +219,25 @@ void Analyzer::Display() {
 
       ShowDiagnostics("Voltage-Domain Diagnostics");
       ShowDiagnostics("Time-Domain Diagnostics");
+
+      ImGui::SetCursorPosX(ImGui::GetFontSize() * 15);
+      ImGui::SetNextItemWidth(ImGui::GetFontSize() * 4);
+      int window = m_window;
+      if (ImGui::InputInt("Window Size", &window, 0, 0)) {
+        m_window = std::clamp(window, 2, 10);
+        m_manager->PrepareData();
+        Calculate();
+      }
+
+      ImGui::SetCursorPosX(ImGui::GetFontSize() * 15);
+      ImGui::SetNextItemWidth(ImGui::GetFontSize() * 4);
+      double threshold = m_threshold;
+      if (ImGui::InputDouble("Velocity Threshold", &threshold, 0.0, 0.0,
+                             "%.3f")) {
+        m_threshold = std::clamp(threshold, 0.0, 1.0);
+        m_manager->PrepareData();
+        Calculate();
+      }
 
       auto size = ImGui::GetIO().DisplaySize;
       ImGui::SetNextWindowSize(ImVec2(size.x / 3, size.y * 0.9));
