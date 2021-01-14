@@ -5,12 +5,15 @@
 #pragma once
 
 #include <array>
+#include <functional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <glass/networktables/NetworkTablesHelper.h>
 #include <ntcore_cpp.h>
 #include <units/time.h>
+#include <wpi/SmallVector.h>
 #include <wpi/StringRef.h>
 #include <wpi/json.h>
 
@@ -35,11 +38,16 @@ class TelemetryManager {
   };
 
   /**
-   * Constructs an instance of the telemetry manager with the provided settings.
+   * Constructs an instance of the telemetry manager with the provided settings
+   * and NT instance to collect data over.
    *
    * @param settings The settings for this instance of the telemetry manager.
+   * @param instance The NT instance to collect data over. The default value of
+   *                 this parameter should suffice in production; it should only
+   *                 be changed during unit testing.
    */
-  explicit TelemetryManager(Settings settings);
+  explicit TelemetryManager(Settings settings,
+                            NT_Inst instance = nt::GetDefaultInstance());
 
   /**
    * Begins a test with the given parameters.
@@ -60,6 +68,18 @@ class TelemetryManager {
    * the user.
    */
   void Update();
+
+  /**
+   * Registers a callback that should be called when a test ends or is canceled.
+   * The callback should accept two parameters -- the distances traveled by the
+   * primary and secondary encoders at the end of the test.
+   *
+   * @param callback The function to be called upon cancellation of a test.
+   */
+  void RegisterCancellationCallback(
+      std::function<void(double, double)> callback) {
+    m_callbacks.emplace_back(std::move(callback));
+  }
 
   /**
    * Saves a JSON with the stored data at the given location.
@@ -117,6 +137,9 @@ class TelemetryManager {
 
   // Stores the test data.
   wpi::json m_data;
+
+  // Cancellation callbacks.
+  wpi::SmallVector<std::function<void(double, double)>, 1> m_callbacks;
 
   // NetworkTables instance and entries.
   glass::NetworkTablesHelper m_nt;
