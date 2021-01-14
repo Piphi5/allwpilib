@@ -13,9 +13,9 @@
 
 using namespace sysid;
 
-TelemetryManager::TelemetryManager(Settings settings)
+TelemetryManager::TelemetryManager(Settings settings, NT_Inst instance)
     : m_settings(std::move(settings)),
-      m_nt(nt::GetDefaultInstance()),
+      m_nt(instance),
       m_autospeed(m_nt.GetEntry("/SmartDashboard/SysIdAutoSpeed")),
       m_telemetry(m_nt.GetEntry("/SmartDashboard/SysIdTelemetry")),
       m_fieldInfo(m_nt.GetEntry("/FMSInfo/FMSControlData")) {
@@ -35,9 +35,23 @@ void TelemetryManager::BeginTest(wpi::StringRef name) {
 }
 
 void TelemetryManager::EndTest() {
+  // If there is no test running, this is a no-op
+  if (!m_isRunningTest) {
+    return;
+  }
+
   // Disable the running flag and store the data in the JSON.
   m_isRunningTest = false;
   m_data[m_tests.back()] = m_params.data;
+
+  // Call the cancellation callbacks.
+  for (auto&& func : m_callbacks) {
+    if (!m_params.data.empty()) {
+      func(m_params.data.back()[5], m_params.data.back()[6]);
+    } else {
+      func(0.0, 0.0);
+    }
+  }
 
   // Send a zero command over NT.
   nt::SetEntryValue(m_autospeed, nt::Value::MakeDouble(0.0));
