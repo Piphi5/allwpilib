@@ -12,6 +12,7 @@
 #include <wpigui.h>
 
 #include "sysid/view/Analyzer.h"
+#include "sysid/view/Generator.h"
 #include "sysid/view/Logger.h"
 
 namespace gui = wpi::gui;
@@ -20,6 +21,7 @@ static std::unique_ptr<glass::WindowManager> gWindowManager;
 
 glass::Window* gLoggerWindow;
 glass::Window* gAnalyzerWindow;
+glass::Window* gGeneratorWindow;
 
 const char* GetWPILibVersion();
 
@@ -42,6 +44,9 @@ int main() {
 
   gAnalyzerWindow = gWindowManager->AddWindow(
       "Analyzer", std::make_unique<sysid::Analyzer>());
+
+  gGeneratorWindow = gWindowManager->AddWindow(
+      "Generator", std::make_unique<sysid::Generator>());
 
   // Configure save file.
   gui::ConfigurePlatformSaveFile("sysid.ini");

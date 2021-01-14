@@ -30,7 +30,7 @@ Logger::Logger() {
   });
 
   // Initialize team number from storage.
-  m_team = glass::GetStorage().GetIntRef("LoggerTeam");
+  m_team = glass::GetStorage().GetIntRef("Team");
 }
 
 void Logger::Display() {
