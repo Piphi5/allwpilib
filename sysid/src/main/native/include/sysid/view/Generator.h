@@ -28,6 +28,9 @@ class Generator : public glass::View {
   static constexpr const char* kEncoders[] = {
       "Built-In", "CANCoder / Alternate", "roboRIO"};
 
+  static constexpr const char* kGyros[] = {"Analog", "ADXRS450", "NavX",
+                                           "Pigeon"};
+
  private:
   // Persistent storage pointers.
   int* m_pTeam;
@@ -39,6 +42,7 @@ class Generator : public glass::View {
   int m_analysisIdx = 3;
   int m_motorControllerIdx = 1;
   int m_encoderIdx = 2;
+  int m_gyroIdx = 2;
 
   // Vectors for motor ports.
   wpi::SmallVector<int, 3> m_primaryMotorPorts;
@@ -52,5 +56,8 @@ class Generator : public glass::View {
 
   // Encoder resolution.
   double m_encoderEPR = 4096.0;
-};
+
+  // Gyro constructor parameter.
+  std::string m_gyroCtor = "SPI.Port.kMXP";
+};  // namespace sysid
 }  // namespace sysid

@@ -127,6 +127,19 @@ void Generator::Display() {
     }
   }
 
+  // Add gyro selection if selected is drivetrain.
+  if (drive) {
+    ImGui::Separator();
+    ImGui::Spacing();
+    ImGui::Text("Gyro");
+    ImGui::Spacing();
+
+    ImGui::SetNextItemWidth(ImGui::GetFontSize() * 10);
+    ImGui::Combo("Gyro", &m_gyroIdx, kGyros, IM_ARRAYSIZE(kGyros));
+    ImGui::SetNextItemWidth(ImGui::GetFontSize() * 10);
+    ImGui::InputText("Gyro Parameter", &m_gyroCtor);
+  }
+
   // Add section for other parameters.
   ImGui::Separator();
   ImGui::Spacing();
