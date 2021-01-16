@@ -434,12 +434,15 @@ void Analyzer::Display() {
       ImGui::SetCursorPosY(beginY);
 
       auto ShowLQRParam = [this](const char* text, double* data, float min,
-                                 float max, float power = 2.0) {
+                                 float max, bool power = true) {
         float val = *data;
         ImGui::SetNextItemWidth(ImGui::GetFontSize() * 5);
         ImGui::SetCursorPosX(ImGui::GetFontSize() * 17);
 
-        if (ImGui::SliderFloat(text, &val, min, max, "%.1f", power)) {
+        if (ImGui::SliderFloat(
+                text, &val, min, max, "%.1f",
+                ImGuiSliderFlags_None |
+                    (power ? ImGuiSliderFlags_Logarithmic : 0))) {
           *data = static_cast<double>(val);
           Calculate();
         }
@@ -450,7 +453,7 @@ void Analyzer::Display() {
       }
 
       ShowLQRParam("Max Velocity Error (units/s)", &m_params.qv, 0.05f, 40.0f);
-      ShowLQRParam("Max Control Effort (V)", &m_params.r, 0.1f, 12.0f, 1.0f);
+      ShowLQRParam("Max Control Effort (V)", &m_params.r, 0.1f, 12.0f, false);
     }
   }
 
@@ -478,7 +481,7 @@ void Analyzer::Display() {
 
 void Analyzer::SelectFile() {
   // If the selector exists and is ready with a result, we can store it.
-  if (m_selector && m_selector->ready()) {
+  if (m_selector && m_selector->ready() && !m_selector->result().empty()) {
     // Store the location of the file and reset the selector.
     *m_location = m_selector->result()[0];
     m_selector.reset();
