@@ -10,6 +10,7 @@
 #include <fstream>
 #include <functional>
 
+
 namespace sysid {
 /**
  * Stores necessary data for building a project.
@@ -67,6 +68,15 @@ class CodeGenerator {
   std::ofstream m_outFile;
   // Maps template commands to functions
   std::unordered_map<std::string, Command> m_commandMap;
+
+  /**
+   * A string formatting implementation to enable more readable
+   * code generation logic
+   * Implementation from: https://stackoverflow.com/a/49812018 
+   * @param zcFormat the string to be formatted
+   * @param ... the arguments to insert into the formatter
+   */
+  const std::string vformat(const char * const zcFormat, ...);
   
   /**
    * Generates a Config file based off of the stored project data.

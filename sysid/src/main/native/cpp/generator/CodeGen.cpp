@@ -12,13 +12,40 @@
 #include <algorithm>
 #include <iterator>
 #include <iostream>
+#include <memory>
+#include <stdexcept>
+#include <string>
+#include <cstdarg>
 
 
 
 using namespace sysid;
 
+const std::string CodeGenerator::vformat(const char * const zcFormat, ...) {
+
+    // initialize use of the variable argument array
+    va_list vaArgs;
+    va_start(vaArgs, zcFormat);
+
+    // reliably acquire the size
+    // from a copy of the variable argument array
+    // and a functionally reliable call to mock the formatting
+    va_list vaArgsCopy;
+    va_copy(vaArgsCopy, vaArgs);
+    const int iLen = std::vsnprintf(NULL, 0, zcFormat, vaArgsCopy);
+    va_end(vaArgsCopy);
+
+    // return a formatted string without risking memory mismanagement
+    // and without assuming any compiler or platform specific behavior
+    std::vector<char> zc(iLen + 1);
+    std::vsnprintf(zc.data(), zc.size(), zcFormat, vaArgs);
+    va_end(vaArgs);
+    return std::string(zc.data(), iLen); 
+}
+
+
 CodeGenerator::CodeGenerator(ProjectData data, const std::string& templatePath)
-    : m_data(data), m_templateFile(templatePath) {
+    : m_data{data}, m_templateFile{templatePath} {
   if (!m_templateFile) {
     // Throw exception
   }
@@ -67,24 +94,25 @@ void CodeGenerator::GenerateCode(const std::string& savePath) {
 
 void CodeGenerator::SetConstants() {
   if (m_data.left_motor_types[0] == "SparkMax") {
-    m_outFile << "\t" << "static private int ENCODER_EDGES_PER_REV = " 
-    << (m_data.epr / 4)  << ";" << std::endl;
+    m_outFile << vformat("\tstatic private int ENCODER_EDGES_PER_REV = %d;", m_data.epr / 4)
+    << std::endl;
 
-    m_outFile << "\t" << "static private double encoderConstant = " 
-    << (1 / m_data.gearing)  << ";" << std::endl;
+    std::cout << (1 / m_data.gearing) << std::endl;
+
+    m_outFile << vformat("\tstatic private double encoderConstant = %.3f;", 1 / m_data.gearing) 
+    << std::endl;
   } else {
-    m_outFile << "\t" << "static private double ENCODER_EDGES_PER_REV = " 
-    << ((double) m_data.epr / 4)  << ";" << std::endl;
+    m_outFile << vformat("\tstatic private double ENCODER_EDGES_PER_REV = %d;" , ((double) m_data.epr / 4))
+    << std::endl;
 
-    m_outFile << "\t" << "static private double encoderConstant = " 
-    << (1 / m_data.gearing) << " * (1 / ENCODER_EDGES_PER_REV)" << 
-    ";" << std::endl;
+    m_outFile << vformat("\tstatic private double encoderConstant = %d * (1 / ENCODER_EDGES_PER_REV)", (1 / m_data.gearing))
+    << std::endl;
   }
 
-  m_outFile << "\t" << "static private int ENCODER_EPR = " 
-  << m_data.epr << ";" << std::endl;
+  m_outFile << vformat("\tstatic private int ENCODER_EPR = %d;", m_data.epr)
+  << std::endl;
 
-  m_outFile << "\t" << "static private int PIDIDX = 0;"
+  m_outFile << "\tstatic private int PIDIDX = 0;"
   << std::endl;
   
 }
